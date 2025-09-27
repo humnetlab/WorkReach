@@ -4,6 +4,9 @@ from scipy.stats import pearsonr
 from typing import Dict, Tuple
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import seaborn as sns
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
     """Compute the common part of commuters (Sørensen-Dice coefficient) for two pairs of fluxes."""
@@ -178,123 +181,189 @@ def plot_utility_parameters(utility_params_df):
     return fig
 
 
-def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize=(16, 10)):
-    """Create boxplots showing accessibility metrics across cities."""
-
-    utility_data = combined_accessibility_df[combined_accessibility_df["Model"] == "Utility"].copy()
-
-    fig, axes = plt.subplots(2, 2, figsize=figsize)
-    fig.suptitle('Accessibility Analysis Across Cities', fontsize=16, y=0.95)
-
-    city_colors = {
-        "Bay Area": "#2ca02c",
-        "Los Angeles": "#ff7f0e",
-        "Mexico City": "#d62728",
-        "Rio de Janeiro": "#1f77b4"
-    }
-
-    ax1 = axes[0, 0]
-    if 'distance_weighted_accessibility' in utility_data.columns:
-        sns.boxplot(data=utility_data, x='City', y='distance_weighted_accessibility',
-                   order=city_order, palette=[city_colors[city] for city in city_order], ax=ax1)
-        ax1.set_title('Distance-Weighted Accessibility')
-        ax1.set_xlabel('')
-        ax1.tick_params(axis='x', rotation=45)
-
-    ax2 = axes[0, 1]
-    if 'surplus_accessibility' in utility_data.columns:
-        sns.boxplot(data=utility_data, x='City', y='surplus_accessibility',
-                   order=city_order, palette=[city_colors[city] for city in city_order], ax=ax2)
-        ax2.set_title('Consumer Surplus Accessibility')
-        ax2.set_xlabel('')
-        ax2.tick_params(axis='x', rotation=45)
-
-    ax3 = axes[1, 0]
-    if 'distance_weighted_accessibility' in utility_data.columns and 'group_label' in utility_data.columns:
-        sns.boxplot(data=utility_data, x='group_label', y='distance_weighted_accessibility',
-                   hue='City', hue_order=city_order, ax=ax3)
-        ax3.set_title('Distance-Weighted by Informality Level')
-        ax3.set_xlabel('Informality Level')
-        ax3.legend(title='City', bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    ax4 = axes[1, 1]
-    if 'surplus_accessibility' in utility_data.columns and 'group_label' in utility_data.columns:
-        sns.boxplot(data=utility_data, x='group_label', y='surplus_accessibility',
-                   hue='City', hue_order=city_order, ax=ax4)
-        ax4.set_title('Consumer Surplus by Informality Level')
-        ax4.set_xlabel('Informality Level')
-        ax4.legend(title='City', bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    plt.tight_layout()
+def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize=(24, 12)):
+    """Create boxplots showing accessibility metrics across cities with sophisticated styling."""
+    
+    sns.set_theme(context="talk", style="whitegrid")
+    plt.rcParams.update({
+        "axes.titlesize": 32,
+        "axes.labelsize": 30,
+        "xtick.labelsize": 30,
+        "ytick.labelsize": 30,
+        "figure.figsize": figsize
+    })
+    
+    PAL = ["#4C72B0", "#55A868", "#C44E52"]   # low/med/high
+    
+    def add_box(ax, df, ycol, city, ylabel=False):
+        order = ["Low", "High"]
+        sns.boxplot(
+            data=df, x="group_label", y=ycol, order=order,
+            palette=PAL, linewidth=2, saturation=.85, showfliers=False, ax=ax)
+        
+        for i, grp in enumerate(order):
+            med = df.loc[df.group_label == grp, ycol].median()
+            ax.text(i, med, f"{med:.2f}", ha="center", va="center",
+                    color="white", fontweight="bold", fontsize=26,
+                    bbox=dict(boxstyle="round,pad=0.15", fc="0.25", alpha=.8))
+        
+        ax.set_title(city, pad=4)
+        ax.set_xlabel("")
+        ax.set_ylabel("Accessibility" if ylabel else "")
+        ax.grid(axis="y", linestyle="--", alpha=.65)
+        ax.set_facecolor("#F8F9FA")
+    
+    fig, axes = plt.subplots(
+        2, 4,
+        figsize=figsize,
+        sharex=True,
+        sharey='row',
+        gridspec_kw={"hspace": 0.45, "wspace": 0.35}
+    )
+    
+    utility_data = combined_accessibility_df[
+        combined_accessibility_df["Model"] == "Utility"
+    ].copy()
+    
+    for col, city in enumerate(city_order):
+        subset = utility_data.query("City == @city")
+        
+        try:
+            if 'distance_weighted_accessibility' in utility_data.columns:
+                add_box(
+                    axes[0, col], subset,
+                    ycol="distance_weighted_accessibility",
+                    city=city,
+                    ylabel=True if col == 0 else False)
+            
+            if 'surplus_accessibility' in utility_data.columns:
+                add_box(
+                    axes[1, col], subset,
+                    ycol="surplus_accessibility",
+                    city="",
+                    ylabel=True if col == 0 else False)
+                    
+        except Exception as e:
+            print(f"Error plotting accessibility for {city}: {e}")
+            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                             ha='center', va='center', transform=axes[0, col].transAxes)
+            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                             ha='center', va='center', transform=axes[1, col].transAxes)
+    
+    fig.text(0.1, 0.97, "a)                         Distance-Weighted Accessibility",
+             fontsize=32, fontweight="bold", va="top")
+    fig.text(0.1, 0.49, "b)                         Consumer-Surplus Accessibility",
+             fontsize=32, fontweight="bold", va="top")
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    
     return fig
 
-def create_maps_with_histograms(all_city_data, city_order, figsize=(24, 18)):
-    """Create maps with accompanying histograms for key variables."""
+def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
+    """Create maps with accompanying histograms for key variables using sophisticated styling."""
+    
+    sns.set_theme(context='talk', style='whitegrid')
+    plt.rcParams.update({
+        'axes.titlesize': 40, 'axes.labelsize': 38,
+        'xtick.labelsize': 34, 'ytick.labelsize': 34,
+        'legend.fontsize': 40, 'figure.figsize': figsize
+    })
+    
+    CITY_COLORS = dict(zip(city_order, sns.color_palette("tab10", 4)))
+    
+    def tidy_ticks(ax, x_vals, y_vals, fs=22):
+        ax.set_xticks([round(np.nanmin(x_vals), 2), round(np.nanmax(x_vals), 2)])
+        ax.set_yticks([0, round(np.max(y_vals), 2)])
+        ax.tick_params(axis='both', labelsize=fs)
+    
+    def city_panel(ax, fig, gdf, value_col, cmap, city_name, bins=15, hist_bottom=0.34):
+        vmin, vmax = gdf[value_col].min(), gdf[value_col].max()
+        
+        gdf.plot(
+            column=value_col, cmap=cmap, ax=ax,
+            vmin=vmin, vmax=vmax, linewidth=0.001, edgecolor='none',
+            rasterized=True,
+            missing_kwds=dict(color="lightgrey", label="NA")
+        )
+        ax.set_axis_off()
+        
+        cax = inset_axes(ax, width="5%", height="70%", loc='center left',
+                         bbox_to_anchor=(1.02, 0., 1, 1),
+                         bbox_transform=ax.transAxes, borderpad=0)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+        sm._A = []
+        cb = plt.colorbar(sm, cax=cax)
+        cb.ax.tick_params(labelsize=32)
+        cb.outline.set_linewidth(0)
+        cb.set_label(value_col.upper() if value_col.lower() == "eci"
+                     else value_col.replace('_', ' ').title(), fontsize=36)
+        cb.solids.set_edgecolor("none")
+        cb.solids.set_linewidth(0)
+        cb.solids.set_rasterized(True)
+        
+        ax_pos = ax.get_position()
+        hist_height = 0.09
+        hist_width = ax_pos.width
+        hist_left = ax_pos.x0
+        
+        ax_hist = fig.add_axes([hist_left, hist_bottom, hist_width, hist_height])
+        vals = gdf[value_col].dropna()
+        
+        counts, edges = np.histogram(vals, bins=bins)
+        bin_centers = 0.5 * (edges[:-1] + edges[1:])
+        colormap = plt.get_cmap(cmap)
+        
+        for i in range(len(counts)):
+            color = colormap((bin_centers[i] - vmin) / (vmax - vmin))
+            ax_hist.bar(bin_centers[i], counts[i],
+                        width=edges[1] - edges[0],
+                        color=color, edgecolor='black', align='center', rasterized=True)
+        
+        for patch in ax_hist.patches:
+            patch.set_rasterized(True)
+        
+        tidy_ticks(ax_hist, edges, counts, fs=32)
+        ax_hist.set_xlabel('')
+        ax_hist.set_ylabel('Count', labelpad=2, fontsize=34)
+        ax_hist.tick_params(axis='both', labelsize=30)
+        sns.despine(ax=ax_hist)
+    
+    fig, axes = plt.subplots(2, 4, figsize=figsize,
+                             gridspec_kw={"hspace": 0.6, "wspace": 0.25})
+    axes = axes.reshape(2, 4)
+    
+    cmap_eci, cmap_inf = "viridis", "magma_r"
+    hist_y_top = 0.50
+    hist_y_bot = 0.03
+    
+    # ECI
+    for col, city in enumerate(city_order):
+        try:
+            mzn = all_city_data[city]["mzn"]
+            city_panel(axes[0, col], fig, mzn, "eci", cmap_eci, city, hist_bottom=hist_y_top)
+        except Exception as e:
+            print(f"Error plotting ECI for {city}: {e}")
+            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                             ha='center', va='center', transform=axes[0, col].transAxes)
+    
+    # Informality
+    for col, city in enumerate(city_order):
+        try:
+            mzn = all_city_data[city]["mzn"]
+            city_panel(axes[1, col], fig, mzn, "informality_rate", cmap_inf, city, hist_bottom=hist_y_bot)
+        except Exception as e:
+            print(f"Error plotting informality for {city}: {e}")
+            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                             ha='center', va='center', transform=axes[1, col].transAxes)
+    
 
-    variables = ['eci', 'informality_rate', 'population']
-    var_labels = ['Economic Complexity Index', 'Informality Rate', 'Population']
-
-    fig = plt.figure(figsize=figsize)
-    gs = GridSpec(len(variables), len(city_order) * 2,
-                  width_ratios=[3, 1] * len(city_order),
-                  hspace=0.3, wspace=0.15)
-
-    cmaps = ['viridis', 'plasma', 'cividis']
-
-    for var_idx, (variable, var_label, cmap) in enumerate(zip(variables, var_labels, cmaps)):
-        for city_idx, city in enumerate(city_order):
-
-            ax_map = fig.add_subplot(gs[var_idx, city_idx * 2])
-
-            ax_hist = fig.add_subplot(gs[var_idx, city_idx * 2 + 1])
-
-            try:
-                mzn = all_city_data[city]["mzn"]
-
-                if variable == 'eci':
-                    plot_data = np.exp(mzn[variable])
-                    hist_data = plot_data
-                elif variable == 'population':
-                    plot_data = mzn[variable]
-                    hist_data = np.log10(plot_data + 1)
-                else:
-                    plot_data = mzn[variable]
-                    hist_data = plot_data
-
-                mzn_plot = mzn.copy()
-                mzn_plot['plot_var'] = plot_data
-
-                mzn_plot = mzn_plot[np.isfinite(mzn_plot['plot_var'])]
-
-                if len(mzn_plot) > 0:
-                    mzn_plot.plot(column='plot_var', cmap=cmap, ax=ax_map,
-                                 linewidth=0.1, edgecolor='white')
-                    ax_map.set_axis_off()
-
-                    ax_hist.hist(hist_data.dropna(), bins=30, alpha=0.7,
-                               color=plt.cm.get_cmap(cmap)(0.6), edgecolor='black', linewidth=0.5)
-                    ax_hist.set_ylabel('Frequency')
-
-                    if variable == 'population':
-                        ax_hist.set_xlabel('Log10(Population + 1)')
-                    else:
-                        ax_hist.set_xlabel(var_label)
-
-                    if var_idx == 0:
-                        ax_map.set_title(city, fontsize=14, fontweight='bold')
-
-                else:
-                    ax_map.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax_map.transAxes)
-                    ax_hist.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax_hist.transAxes)
-
-            except Exception as e:
-                print(f"Error plotting {variable} for {city}: {e}")
-                ax_map.text(0.5, 0.5, f'Error: {str(e)[:20]}...',
-                           ha='center', va='center', transform=ax_map.transAxes)
-                ax_hist.text(0.5, 0.5, 'Error', ha='center', va='center', transform=ax_hist.transAxes)
-
-
-        fig.text(0.02, 0.85 - var_idx * 0.28, var_label,
-                fontsize=14, fontweight='bold', rotation=90, va='center')
-
+    for c, city in enumerate(city_order):
+        fig.text(0.17 + c * 0.219, 0.97, city, fontsize=50, fontweight="bold", ha="center", va="top")
+    
+    for r, (row_label, metric_name) in enumerate([("a)", "ECI"), ("b)", "Informality Rate")]):
+        ax_pos = axes[r, 0].get_position()
+        row_top_y = ax_pos.y0 + ax_pos.height + 0.02
+        fig.text(0.04, row_top_y, f"{row_label}  {metric_name}",
+                 fontsize=44, fontweight='bold', va='bottom')
+    
     return fig

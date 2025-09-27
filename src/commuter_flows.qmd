@@ -313,7 +313,7 @@ for i, city in enumerate(cities_list):
         ax.text(0.05, 0.95, f"$\\rho$ = {corr:.2f}\nCPC = {cpc:.2f}",
             transform=ax.transAxes, fontsize=20,
             verticalalignment='top',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
 
         if model == "Utility":
             model_display = "WorkReach"
@@ -336,6 +336,8 @@ for i, city in enumerate(cities_list):
         ax.set_ylim(1, max_val*1.1)
 
 fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
+fig.savefig("../figs/model_performance.png", dpi=300, bbox_inches="tight")
+
 plt.tight_layout()
 plt.show()
 ```
@@ -480,13 +482,27 @@ fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight'
 plt.show()
 ```
 
+```{python}
+maps_fig = create_accessibility_maps(
+    all_city_data=all_city_data,
+    z_df=z_df,
+    city_order=CITY_ORDER,
+    figsize=(24, 18)
+)
+fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
+            facecolor='white', edgecolor='none')
+fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
+            facecolor='white', edgecolor='none')
+plt.show()
+```
+
 ## Complexity Analysis (for complexity_plots.pdf)
 
 ```{python}
 # Note: This requires running the complexity analysis from analysis_eci.qmd
 # Placeholder
 
-print("Complexity analysis would go here - integrate from analysis_eci.qmd if needed")
+print("Complexity analysis would go here - integrate from analysis_eci.qmd")
 print("This creates the complexity_plots.pdf figure")
 ```
 
