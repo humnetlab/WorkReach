@@ -1,0 +1,46 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Quarto/knitr cache
+*.qmd.cache/
+*.Rproj.user/
+
+
+# Ignore environment files
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+
+# Ignore IDE files
+.vscode/
+
+# Ignore log files
+*.log
+logs/
+*.out
+*.err
+*.pid
+
+# Ignore compiled files
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+*.dylib
+*.class
+*.o
+
+# Ignore distribution files
+dist/
+build/
+*.egg-info/
+.eggs/
+*.whl
+pip-wheel-metadata/
+*.egg
+

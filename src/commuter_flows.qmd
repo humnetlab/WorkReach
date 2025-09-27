@@ -93,20 +93,20 @@ MODEL_COLORS = {
 ```{python}
 city_paths = {
     "Bay Area": {
-        "mzn_path": "~/Downloads/h3_bay_8.geojson",
-        "flows_path": "~/Downloads/bay_flows_h3_8.csv"
+        "mzn_path": "../data/h3_bay_8.geojson",
+        "flows_path": "../data/bay_flows_h3_8.csv"
     },
     "Los Angeles": {
-        "mzn_path": "~/Downloads/h3_la_8.geojson",
-        "flows_path": "~/Downloads/la_flows_h3_8.csv"
+        "mzn_path": "../data/h3_la_8.geojson",
+        "flows_path": "../data/la_flows_h3_8.csv"
     },
     "Mexico City": {
-        "mzn_path": "~/Downloads/h3_cdmx_8.geojson",
-        "flows_path": "~/Downloads/cdmx_flows_h3_8.csv"
+        "mzn_path": "../data/h3_cdmx_8.geojson",
+        "flows_path": "../data/cdmx_flows_h3_8.csv"
     },
     "Rio de Janeiro": {
-        "mzn_path": "/data/Berkeley/BR/maps/map_informality_eci.geojson",
-        "flows_path": "~/Downloads/rio_flows_h3_8h3.csv"
+        "mzn_path": "../data/map_informality_eci.geojson",
+        "flows_path": "../data/rio_flows_h3_8h3.csv"
     }
 }
 
@@ -335,7 +335,7 @@ for i, city in enumerate(cities_list):
         ax.set_xlim(1, max_val*1.1)
         ax.set_ylim(1, max_val*1.1)
 
-fig.savefig("../figs_paper/model_performance.pdf", dpi=300, bbox_inches="tight")
+fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
 plt.tight_layout()
 plt.show()
 ```
@@ -369,7 +369,7 @@ combined_accessibility_df, all_accessibility_dfs = process_accessibility_data(al
 
 city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
 accessibility_fig = create_accessibility_boxplots(combined_accessibility_df, city_order)
-accessibility_fig.savefig('../figs_paper/accessibility_boxplots_sharey.pdf', dpi=300,
+accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
                           facecolor='white', edgecolor='none')
 plt.show()
 ```
@@ -379,9 +379,9 @@ plt.show()
 ```{python}
 city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
 maps_fig = create_maps_with_histograms(all_city_data, city_order)
-maps_fig.savefig('../figs_paper/maps_hist.pdf', dpi=300,
+maps_fig.savefig('../figs/maps_hist.pdf', dpi=300,
                  facecolor='white', edgecolor='none')
-maps_fig.savefig('../figs_paper/maps_hist.png', dpi=300, bbox_inches='tight',
+maps_fig.savefig('../figs/maps_hist.png', dpi=300, bbox_inches='tight',
                  facecolor='white', edgecolor='none')
 plt.show()
 ```
@@ -473,9 +473,9 @@ for r, (_, _, _, row_label) in enumerate(ROW_INFO):
              fontsize=34, fontweight="bold", va="bottom")
 
 plt.tight_layout(rect=[0.06, 0.01, 0.98, 0.91])
-fig.savefig('../figs_paper/accessibility_maps_space.pdf', dpi=300,
+fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
             facecolor='white', edgecolor='none')
-fig.savefig('../figs_paper/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
+fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
             facecolor='white', edgecolor='none')
 plt.show()
 ```
@@ -494,7 +494,7 @@ print("This creates the complexity_plots.pdf figure")
 
 ```{python}
 try:
-    ipath = "/home/ollin/Dropbox/enlace_hacia_documentos/Berkeley/informalidad/figs"
+    ipath = "../figs"
     img_a = mpimg.imread(f"{ipath}/cdmx_stacked_variables.png")
     img_b = mpimg.imread(f"{ipath}/cdmx_utility_job_location.png")
     img_c = mpimg.imread(f"{ipath}/cdmx_flows_workreach.png")
@@ -517,7 +517,7 @@ try:
     fig.text(0.705, 0.965, "c)", fontsize=28, fontweight="bold", ha="left", va="top", color="black")
     fig.text(0.02, 0.48, "d)", fontsize=28, fontweight="bold", ha="left", va="top", color="black")
 
-    fig.savefig("../figs_paper/four_panel_layout_workreach_font.pdf", dpi=300, bbox_inches="tight")
+    fig.savefig("../figs/four_panel_layout_workreach_font.pdf", dpi=300, bbox_inches="tight")
     plt.show()
 
 except FileNotFoundError:
