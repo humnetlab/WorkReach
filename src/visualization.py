@@ -367,3 +367,91 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
                  fontsize=44, fontweight='bold', va='bottom')
     
     return fig
+
+
+def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18)):
+    """Create spatial maps showing accessibility metrics across cities."""
+    
+    sns.set_theme(context="talk", style="whitegrid")
+    plt.rcParams.update({
+        "axes.titlesize": 36, "axes.labelsize": 32,
+        "xtick.labelsize": 28, "ytick.labelsize": 28,
+        "legend.fontsize": 36, "figure.figsize": figsize
+    })
+    
+    def city_panel(ax, gdf, value_col, cmap, city_name,
+                   diverging=False, colorbar=True):
+        vals = gdf[value_col].dropna().values
+        if len(vals) == 0:
+            ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
+            ax.set_axis_off()
+            return
+            
+        vmin, vmax = (vals.min(), vals.max()) if not diverging else (-np.max(abs(vals)), np.max(abs(vals)))
+
+        gdf.plot(column=value_col, cmap=cmap, ax=ax,
+                 vmin=vmin, vmax=vmax, linewidth=0.1, edgecolor='white',
+                 missing_kwds=dict(color="lightgrey", label="NA"))
+        ax.collections[0].set_rasterized(True)
+        ax.set_axis_off()
+
+        if colorbar:
+            cax = inset_axes(
+                ax,
+                width="3.5%", height="80%",
+                loc='center left',
+                bbox_to_anchor=(1.02, 0., 1, 1),
+                bbox_transform=ax.transAxes,
+                borderpad=0,
+            )
+            sm = plt.cm.ScalarMappable(cmap=cmap,
+                                       norm=plt.Normalize(vmin=vmin, vmax=vmax))
+            sm.set_array([])
+            cb = plt.colorbar(sm, cax=cax)
+            cb.ax.tick_params(labelsize=20)
+            cb.outline.set_linewidth(0)
+            cb.set_label("Accessibility (z-score)", fontsize=22)
+
+            cb.solids.set_edgecolor("none")
+            cb.solids.set_linewidth(0)
+            cb.solids.set_rasterized(True)
+    
+    ROW_INFO = [
+        ("z_dist", "crest_r", False, "a)  Distance‑weighted Accessibility"),
+        ("z_surp", "viridis", False, "b)  Consumer Surplus Accessibility"),
+        ("diff",   "flare_r", False,  "c)  PCA 1st Dim. Accessibility")
+    ]
+    
+    fig, axes = plt.subplots(3, 4, figsize=figsize, 
+                             gridspec_kw={"hspace": 0.25, "wspace": 0.12})
+    
+    for c, city in enumerate(city_order):
+        fig.text(0.20 + c * 0.21, 0.955, city,
+                 fontsize=30, fontweight="bold", ha="center", va="top")
+    
+    for r, (metric, cmap, div, row_label) in enumerate(ROW_INFO):
+        for c, city in enumerate(city_order):
+            ax = axes[r, c]
+            try:
+                gdf_city = all_city_data[city]["mzn"].merge(
+                    z_df[z_df.City == city][["geomid", metric]],
+                    on="geomid", how="left"
+                )
+                city_panel(ax, gdf_city, metric, cmap, city, diverging=div)
+            except Exception as e:
+                print(f"Error plotting {metric} for {city}: {e}")
+                ax.text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                       ha='center', va='center', transform=ax.transAxes)
+                ax.set_axis_off()
+    
+    for r, (_, _, _, row_label) in enumerate(ROW_INFO):
+        ax_pos = axes[r, 0].get_position()
+        row_top_y = ax_pos.y0 + ax_pos.height
+
+        fig.text(0.07, row_top_y, row_label,
+                 fontsize=26, fontweight="bold", va="bottom")
+    
+    plt.tight_layout(rect=[0.06, 0.01, 0.98, 0.91])
+    
+    return fig
+
