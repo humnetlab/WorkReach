@@ -52,6 +52,7 @@ from matplotlib.colors import Normalize
 import matplotlib.image as mpimg
 from matplotlib.gridspec import GridSpec
 from scipy import stats
+import importlib
 
 
 from data_processing import *
@@ -87,6 +88,16 @@ MODEL_COLORS = {
     "Radiation_Ext": "#1abc9c", 
     "BMS_Plausible": "#34495e" 
 }
+```
+
+Adding this chunk here to reload auxiliary files when debugging. This allows for reloading the library if something changes there without restarting the kernel and loosing all of our variables.
+
+```{python}
+importlib.reload(data_processing)
+importlib.reload(models)
+importlib.reload(evaluation)
+importlib.reload(visualization)
+importlib.reload(accessibility)
 ```
 
 ## Load Data for All Cities
@@ -336,8 +347,8 @@ for i, city in enumerate(cities_list):
         ax.set_xlim(1, max_val*1.1)
         ax.set_ylim(1, max_val*1.1)
 
-fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
-fig.savefig("../figs/model_performance.png", dpi=300, bbox_inches="tight")
+# fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
+# fig.savefig("../figs/model_performance.png", dpi=300, bbox_inches="tight")
 
 plt.tight_layout()
 plt.show()
@@ -373,11 +384,11 @@ display(utility_params_table)
 
 ```{python}
 plot_utility_heatmaps(all_models["Mexico City"]["Utility"][0], distance_range=(0.55,0.6), informality_range=(0.4, 0.6), eci_range=(0.6,1))
-plt.savefig('../figs/substitution_rates_cdmx.pdf', dpi=300,
-            facecolor='white', backend="pdf", edgecolor='none')
+# plt.savefig('../figs/substitution_rates_cdmx.pdf', dpi=300,
+#             facecolor='white', backend="pdf", edgecolor='none')
 
-plt.savefig('../figs/substitution_rates_cdmx.png', dpi=300, bbox_inches='tight',
-            facecolor='white', edgecolor='none')
+# plt.savefig('../figs/substitution_rates_cdmx.png', dpi=300, bbox_inches='tight',
+#             facecolor='white', edgecolor='none')
 plt.show()
 ```
 
@@ -453,8 +464,8 @@ combined_accessibility_df, all_accessibility_dfs = process_accessibility_data(al
 
 city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
 accessibility_fig = create_accessibility_boxplots(combined_accessibility_df, city_order)
-accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
-                          facecolor='white', edgecolor='none')
+# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
+#                           facecolor='white', edgecolor='none')
 plt.show()
 ```
 
@@ -463,10 +474,10 @@ plt.show()
 ```{python}
 city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
 maps_fig = create_maps_with_histograms(all_city_data, city_order)
-maps_fig.savefig('../figs/maps_hist.pdf', dpi=300,
-                 facecolor='white', edgecolor='none')
-maps_fig.savefig('../figs/maps_hist.png', dpi=300, bbox_inches='tight',
-                 facecolor='white', edgecolor='none')
+# maps_fig.savefig('../figs/maps_hist.pdf', dpi=300,
+#                  facecolor='white', edgecolor='none')
+# maps_fig.savefig('../figs/maps_hist.png', dpi=300, bbox_inches='tight',
+#                  facecolor='white', edgecolor='none')
 plt.show()
 ```
 
@@ -490,7 +501,7 @@ z_df['z_surp'] = z_df.groupby('City')['z_surp'].transform(winsorise)
 
 
 for col in ["z_dist", "z_surp"]:
-    z_df[col] = z_df.groupby("City")[col].transform(winsorise_and_pca)
+    z_df[col] = z_df.groupby("City")[col].transform(winsorise)
 
 z_df[["z_dist", "z_surp"]] = (
     z_df.groupby("City")[["z_dist", "z_surp"]]
@@ -500,7 +511,7 @@ z_df = z_df.dropna()
 
 
 z_df = z_df.groupby("City").apply(city_pca).drop(columns="City").reset_index()
-z_df["diff"] = z_df["PC1"].transform(winsorise_and_pca)
+z_df["diff"] = z_df["PC1"].transform(winsorise)
 ```
 
 ```{python}
@@ -510,10 +521,10 @@ maps_fig = create_accessibility_maps(
     city_order=city_order,
     figsize=(24, 18)
 )
-fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
-            facecolor='white', edgecolor='none')
-fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
-            facecolor='white', edgecolor='none')
+# fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
+#             facecolor='white', edgecolor='none')
+# fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
+#             facecolor='white', edgecolor='none')
 plt.show()
 ```
 
@@ -553,8 +564,8 @@ try:
     fig.text(0.705, 0.965, "c)", fontsize=28, fontweight="bold", ha="left", va="top", color="black")
     fig.text(0.02, 0.48, "d)", fontsize=28, fontweight="bold", ha="left", va="top", color="black")
 
-    fig.savefig("../figs/four_panel_layout_workreach_font.pdf", dpi=300, bbox_inches="tight")
-    plt.show()
+    # fig.savefig("../figs/four_panel_layout_workreach_font.pdf", dpi=300, bbox_inches="tight")
+    # plt.show()
 
 except FileNotFoundError:
     print("Image files not found - please adjust paths in the four panel layout section")
