@@ -496,15 +496,11 @@ fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight'
 plt.show()
 ```
 
-## Complexity Analysis (for complexity_plots.pdf)
+## Creating the plot layout of the graphical abstract
 
-```{python}
-# Note: This requires running the complexity analysis from analysis_eci.qmd
-# Placeholder
+This following code only creates a figure layout from previously created plots.
+The original files are created in [this notebook](workreach_fig/workreach_abstract_fig.qmd)
 
-print("Complexity analysis would go here - integrate from analysis_eci.qmd")
-print("This creates the complexity_plots.pdf figure")
-```
 
 ## Four Panel Layout (for four_panel_layout_workreach_font.pdf)
 

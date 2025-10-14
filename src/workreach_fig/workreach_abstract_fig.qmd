@@ -145,7 +145,7 @@ fig, ax = create_3d_stacked_map(
     alpha_max=0.7,
     elev=CAMERA['elev'],
     azim=CAMERA['azim'],
-    # save_path='../../figs/cdmx_3d_stacked_main.png',
+    save_path='../../figs/variables.png',
     dpi=300
 )
 ```
