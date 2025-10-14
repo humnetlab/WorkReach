@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 from typing import Dict, Tuple
+from models import compute_utilities
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
     """Compute the common part of commuters (Sørensen-Dice coefficient) for two pairs of fluxes."""
@@ -147,3 +148,57 @@ def create_utility_model_parameters_table(
 
 
     return pd.DataFrame([param_dict])
+
+def create_utility_model_parameters_table(
+    optimized_params_utility: np.ndarray,
+    city_name: str = "Unknown City"
+) -> pd.DataFrame:
+    beta_distance, beta_eci, beta_informality, log_threshold, k = optimized_params_utility
+    
+    threshold_meters = np.exp(log_threshold)
+    
+    substitution_rate_eci_distance = beta_eci / beta_distance
+    substitution_rate_informality_distance = beta_informality / beta_distance
+    substitution_rate_informality_eci = beta_informality / beta_eci
+    
+    param_dict = {
+        'City': city_name,
+        'beta_distance': beta_distance,
+        'beta_eci': beta_eci,
+        'beta_informality': beta_informality,
+        'threshold (log)': log_threshold,
+        'threshold [m]': threshold_meters,
+        'k': k,
+        'ECI/distance': substitution_rate_eci_distance,
+        'informality/distance': substitution_rate_informality_distance,
+        'informality/ECI': substitution_rate_informality_eci
+    }
+    
+    return pd.DataFrame([param_dict])
+
+
+def elasticity_matrices(distance, eci, informality, beta_d, beta_e, beta_f, tau, k):
+    w = 1 / (1 + np.exp(-k * (distance - tau)))
+    
+    U = compute_utilities(distance, eci, informality, beta_d, beta_e, beta_f, tau, k)
+    expU = np.exp(U - U.max(axis=1, keepdims=True))
+    P = expU / expU.sum(axis=1, keepdims=True)
+    
+    E_e = w * beta_e * eci * (1 - P)
+    
+    E_f = w * beta_f * informality * (1 - P)
+    
+    marginal_distance = beta_d + k * w * (1 - w) * (beta_e * eci + beta_f * informality)
+    E_d = marginal_distance * distance * (1 - P)
+    
+    for E in (E_d, E_e, E_f):
+        np.fill_diagonal(E, 0)
+    
+    return E_d, E_e, E_f
+
+def bootstrap_ci(sample, n_boot=500, alpha=0.05):
+    boot_means = [np.random.choice(sample, size=sample.size, replace=True).mean()
+                  for _ in range(n_boot)]
+    lo, hi = np.percentile(boot_means, [100*alpha/2, 100*(1-alpha/2)])
+    return lo, hi
+

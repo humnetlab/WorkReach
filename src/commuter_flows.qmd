@@ -51,6 +51,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 import matplotlib.image as mpimg
 from matplotlib.gridspec import GridSpec
+from scipy import stats
 
 
 from data_processing import *
@@ -364,6 +365,87 @@ utility_params_fig = plot_utility_parameters(combined_utility_params)
 plt.show()
 ```
 
+```{python}
+utility_params_table = create_utility_model_parameters_table(
+    all_models["Mexico City"]["Utility"][0], "Mexico City")
+display(utility_params_table)
+```
+
+```{python}
+plot_utility_heatmaps(all_models["Mexico City"]["Utility"][0], distance_range=(0.55,0.6), informality_range=(0.4, 0.6), eci_range=(0.6,1))
+plt.savefig('../figs/substitution_rates_cdmx.pdf', dpi=300,
+            facecolor='white', backend="pdf", edgecolor='none')
+
+plt.savefig('../figs/substitution_rates_cdmx.png', dpi=300, bbox_inches='tight',
+            facecolor='white', edgecolor='none')
+plt.show()
+```
+
+## Elasticities
+
+```{python}
+# Configuration
+alpha = 0.05
+n_boot = 500
+
+results = []
+for city, data in all_city_data.items():
+    Dlog = data["distance_log"]
+    ECI = data["eci"]
+    INF = data["informality"]
+    
+    bd, be, bf, tau, k = all_models[city]["Utility"][0][:5]
+    
+    E_d, E_e, E_f = elasticity_matrices(Dlog, ECI, INF, bd, be, bf, tau, k)
+    
+    mask = ~np.eye(E_d.shape[0], dtype=bool)
+    e_d_vals = E_d[mask & ~np.isnan(E_d)]
+    e_e_vals = E_e[mask & ~np.isnan(E_e)]
+    e_f_vals = E_f[mask & ~np.isnan(E_f)]
+    
+    ci_d_lo, ci_d_hi = bootstrap_ci(e_d_vals)
+    ci_e_lo, ci_e_hi = bootstrap_ci(e_e_vals)
+    ci_f_lo, ci_f_hi = bootstrap_ci(e_f_vals)
+    
+    row = {
+        "City": city,
+        "mean ε_distance": e_d_vals.mean(),
+        "CI_low ε_distance": ci_d_lo,
+        "CI_high ε_distance": ci_d_hi,
+        "median ε_distance": np.median(e_d_vals),
+        "mean ε_ECI": e_e_vals.mean(),
+        "CI_low ε_ECI": ci_e_lo,
+        "CI_high ε_ECI": ci_e_hi,
+        "median ε_ECI": np.median(e_e_vals),
+        "mean ε_informal": e_f_vals.mean(),
+        "CI_low ε_informal": ci_f_lo,
+        "CI_high ε_informal": ci_f_hi,
+        "median ε_informal": np.median(e_f_vals),
+    }
+    results.append(row)
+
+elasticity_tbl = (pd.DataFrame(results)
+                  .set_index("City")
+                  .sort_index()
+                  .round(3))
+
+
+summary_results = []
+for _, row in elasticity_tbl.iterrows():
+    city = row.name
+    summary_row = {
+        "City": city,
+        "ε_distance": f"{row['mean ε_distance']:.3f} [{row['CI_low ε_distance']:.3f}, {row['CI_high ε_distance']:.3f}]",
+        "ε_ECI": f"{row['mean ε_ECI']:.3f} [{row['CI_low ε_ECI']:.3f}, {row['CI_high ε_ECI']:.3f}]",
+        "ε_informal": f"{row['mean ε_informal']:.3f} [{row['CI_low ε_informal']:.3f}, {row['CI_high ε_informal']:.3f}]"
+    }
+    summary_results.append(summary_row)
+
+summary_tbl = pd.DataFrame(summary_results).set_index("City")
+print("\nSummary Table (Mean [95% CI]):")
+display(summary_tbl)
+```
+
 ## Accessibility Analysis
 
 ```{python}
@@ -390,9 +472,9 @@ plt.show()
 
 ## Accessibility Maps
 
-```{python}
-from scipy import stats
+Use z-score to compare the two accessibility types
 
+```{python}
 z_df = (
     combined_accessibility_df
     .assign(
@@ -403,18 +485,9 @@ z_df = (
     )
 )
 
-def winsorise(series, lower=0.05, upper=.95):
-    lo, hi = series.quantile([lower, upper])
-    return series.clip(lo, hi)
-
 z_df['z_dist'] = z_df.groupby('City')['z_dist'].transform(winsorise)
 z_df['z_surp'] = z_df.groupby('City')['z_surp'].transform(winsorise)
 
-from sklearn.decomposition import PCA
-
-def winsorise_and_pca(series, p_lo=.05, p_hi=.95):
-    lo, hi = series.quantile([p_lo, p_hi])
-    return series.clip(lo, hi)
 
 for col in ["z_dist", "z_surp"]:
     z_df[col] = z_df.groupby("City")[col].transform(winsorise_and_pca)
@@ -425,68 +498,16 @@ z_df[["z_dist", "z_surp"]] = (
 )
 z_df = z_df.dropna()
 
-def city_pca(sub):
-    pcs = PCA(n_components=2).fit_transform(sub[["z_dist", "z_surp"]])
-    sub[["PC1","PC2"]] = pcs
-    return sub
 
 z_df = z_df.groupby("City").apply(city_pca).drop(columns="City").reset_index()
 z_df["diff"] = z_df["PC1"].transform(winsorise_and_pca)
-
-sns.set_theme(context="talk", style="whitegrid")
-plt.rcParams.update({
-    "axes.titlesize": 36, "axes.labelsize": 32,
-    "xtick.labelsize": 28, "ytick.labelsize": 28,
-    "legend.fontsize": 36, "figure.figsize": (24, 18)
-})
-
-city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
-
-ROW_INFO = [
-    ("z_dist", "crest_r", False, "a)  Distance-weighted Accessibility"),
-    ("z_surp", "viridis", False, "b)  Consumer Surplus Accessibility"),
-    ("diff", "flare_r", False, "c)  PCA 1st Dim. Accessibility")
-]
-
-fig, axes = plt.subplots(3, 4, figsize=(24, 18), gridspec_kw={"hspace": 0.25, "wspace": 0.12})
-
-for c, city in enumerate(city_order):
-    fig.text(0.20 + c * 0.21, 0.955, city,
-             fontsize=38, fontweight="bold", ha="center", va="top")
-
-for r, (metric, cmap, div, *_) in enumerate(ROW_INFO):
-    for c, city in enumerate(city_order):
-        ax = axes[r, c]
-        gdf_city = all_city_data[city]["mzn"].merge(
-            z_df[z_df.City == city][["geomid", metric]],
-            on="geomid", how="left"
-        )
-
-        vmin, vmax = gdf_city[metric].min(), gdf_city[metric].max()
-        gdf_city.plot(column=metric, cmap=cmap, ax=ax,
-                     vmin=vmin, vmax=vmax, linewidth=0.1, edgecolor='white',
-                     missing_kwds=dict(color="lightgrey", label="NA"))
-        ax.set_axis_off()
-
-for r, (_, _, _, row_label) in enumerate(ROW_INFO):
-    ax_pos = axes[r, 0].get_position()
-    row_top_y = ax_pos.y0 + ax_pos.height + 0.02
-    fig.text(0.04, row_top_y, row_label,
-             fontsize=34, fontweight="bold", va="bottom")
-
-plt.tight_layout(rect=[0.06, 0.01, 0.98, 0.91])
-fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
-            facecolor='white', edgecolor='none')
-fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight',
-            facecolor='white', edgecolor='none')
-plt.show()
 ```
 
 ```{python}
 maps_fig = create_accessibility_maps(
     all_city_data=all_city_data,
     z_df=z_df,
-    city_order=CITY_ORDER,
+    city_order=city_order,
     figsize=(24, 18)
 )
 fig.savefig('../figs/accessibility_maps_space.pdf', dpi=300,
@@ -496,10 +517,13 @@ fig.savefig('../figs/accessibility_maps_space.png', dpi=300, bbox_inches='tight'
 plt.show()
 ```
 
+
+
 ## Creating the plot layout of the graphical abstract
 
-This following code only creates a figure layout from previously created plots.
-The original files are created in [this notebook](workreach_fig/workreach_abstract_fig.qmd)
+The following code only creates a figure layout from previously created plots.
+The original files are created in [this notebook](workreach_fig/workreach_abstract_fig.qmd), except for the substitution rates that is created in a former cell of this notebook.
+The reason for this is that they don't need data from the models and I wanted to keep this notebook uncluttered.
 
 
 ## Four Panel Layout (for four_panel_layout_workreach_font.pdf)
@@ -534,6 +558,5 @@ try:
 
 except FileNotFoundError:
     print("Image files not found - please adjust paths in the four panel layout section")
-    print("This creates the four_panel_layout_workreach_font.pdf figure")
 ```
 
