@@ -7,26 +7,12 @@ from matplotlib.path import Path
 from matplotlib.textpath import TextToPath
 from matplotlib.font_manager import FontProperties
 from matplotlib_scalebar.scalebar import ScaleBar
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import fontawesome as fa
 import math
 
 
 def get_marker(symbol, font_path="/usr/share/fonts-font-awesome/fonts/FontAwesome.otf"):
-    """
-    Convert a FontAwesome symbol to a matplotlib marker path.
-    
-    Parameters
-    ----------
-    symbol : str
-        FontAwesome character/symbol
-    font_path : str
-        Path to FontAwesome font file
-        
-    Returns
-    -------
-    Path
-        Matplotlib Path object for the symbol
-    """
     fp = FontProperties(fname=font_path)
     v, codes = TextToPath().get_text_path(fp, symbol)
     v = np.array(v)
@@ -35,19 +21,6 @@ def get_marker(symbol, font_path="/usr/share/fonts-font-awesome/fonts/FontAwesom
 
 
 def haversine_m(lon1, lat1, lon2, lat2):
-    """
-    Calculate great circle distance in meters between two points.
-    
-    Parameters
-    ----------
-    lon1, lat1, lon2, lat2 : float
-        Coordinates in decimal degrees
-        
-    Returns
-    -------
-    float
-        Distance in meters
-    """
     R = 6_371_000.0
     lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
     dlon, dlat = lon2 - lon1, lat2 - lat1
@@ -57,27 +30,6 @@ def haversine_m(lon1, lat1, lon2, lat2):
 
 def get_zoom_bounds(centroid_x, centroid_y, side_length_km, 
                     km_per_lon=105, km_per_lat=111):
-    """
-    Calculate bounding box centered at given coordinates.
-    
-    Parameters
-    ----------
-    centroid_x : float
-        Center longitude
-    centroid_y : float
-        Center latitude
-    side_length_km : float
-        Full side length of bounding box in kilometers
-    km_per_lon : float
-        Kilometers per degree longitude (default for Mexico City)
-    km_per_lat : float
-        Kilometers per degree latitude
-        
-    Returns
-    -------
-    list
-        [min_lon, min_lat, max_lon, max_lat]
-    """
     half_side = side_length_km / 2.0
     lat_offset = half_side / km_per_lat
     lon_offset = half_side / km_per_lon
@@ -90,29 +42,6 @@ def get_zoom_bounds(centroid_x, centroid_y, side_length_km,
 
 
 def draw_arrow(ax, x_start, y_start, x_end, y_end, width, color, zorder=1):
-    """
-    Draw a fancy curved arrow between two points.
-    
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Matplotlib axis to draw on
-    x_start, y_start : float
-        Start coordinates
-    x_end, y_end : float
-        End coordinates
-    width : float
-        Width of arrow (proportional to utility)
-    color : str
-        Arrow color
-    zorder : int
-        Drawing order
-        
-    Returns
-    -------
-    tuple
-        (midx, midy) - midpoint coordinates of the arrow
-    """
     arrow = FancyArrowPatch(
         (x_start, y_start), 
         (x_end, y_end),
@@ -136,29 +65,6 @@ def draw_arrow(ax, x_start, y_start, x_end, y_end, width, color, zorder=1):
 
 def process_utility_data(gdf, close_regime_radius, close_job_idx, far_job_idx, 
                          plot_size, random_state=42):
-    """
-    Process geodataframe to compute utilities and select job locations.
-    
-    Parameters
-    ----------
-    gdf : GeoDataFrame
-        Input geodataframe with 'eci' and 'eci_level' columns
-    close_regime_radius : float
-        Radius in meters for close regime
-    close_job_idx : int
-        Index for selecting close job (sorted by utility)
-    far_job_idx : int
-        Index for selecting far job (sorted by utility)
-    plot_size : float
-        Plot size in km for filtering far jobs
-    random_state : int
-        Random state for reproducible home selection
-        
-    Returns
-    -------
-    tuple
-        (processed_gdf, home_coords, job_locations, zoom_bounds)
-    """
     zoom_gdf = gdf.copy()
     
     if 'centroid' not in zoom_gdf.columns:
@@ -238,41 +144,9 @@ def process_utility_data(gdf, close_regime_radius, close_job_idx, far_job_idx,
 def plot_utility_map(zoom_gdf, home_coords, job_locations, zoom_bounds, 
                      close_regime_radius, column='utility', cmap='viridis',
                      figsize=(15, 15), save_path=None, dpi=300):
-    """
-    Create the utility map visualization.
-    
-    Parameters
-    ----------
-    zoom_gdf : GeoDataFrame
-        Processed geodataframe with utility values
-    home_coords : tuple
-        (lon, lat) of home location
-    job_locations : DataFrame
-        Selected job locations
-    zoom_bounds : list
-        [min_lon, min_lat, max_lon, max_lat]
-    close_regime_radius : float
-        Radius in meters for close regime circle
-    column : str
-        Column to plot ('utility' or 'eci')
-    cmap : str
-        Colormap name
-    figsize : tuple
-        Figure size
-    save_path : str or None
-        Path to save figure (if None, doesn't save)
-    dpi : int
-        DPI for saved figure
-        
-    Returns
-    -------
-    tuple
-        (fig, ax) matplotlib figure and axis objects
-    """
     sns.set_theme(style="ticks", context="talk")
     fig, ax = plt.subplots(figsize=figsize)
     
-    # Normalize values for coloring
     vmin = zoom_gdf[column].min()
     vmax = zoom_gdf[column].max()
     
@@ -296,7 +170,7 @@ def plot_utility_map(zoom_gdf, home_coords, job_locations, zoom_bounds,
     ax.set_xlim(zoom_bounds[0] - 0.005, zoom_bounds[2] + 0.005)
     ax.set_ylim(zoom_bounds[1] - 0.005, zoom_bounds[3] + 0.005)
     
-    lat_radius = close_regime_radius / 111_000  # Convert meters to degrees
+    lat_radius = close_regime_radius / 111_000
     lon_radius = close_regime_radius / 105_000
     avg_radius = (lat_radius + lon_radius) / 2
     close_circle = Circle(
@@ -357,6 +231,157 @@ def plot_utility_map(zoom_gdf, home_coords, job_locations, zoom_bounds,
     
     ax.set_xticks([])
     ax.set_yticks([])
+    
+    if save_path:
+        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+        if save_path.endswith('.png'):
+            pdf_path = save_path.replace('.png', '.pdf')
+            plt.savefig(pdf_path, dpi=dpi, bbox_inches='tight')
+    
+    return fig, ax
+
+################## 3D Stacked Map  ##################
+def polygon_to_3dcoords(polygon, z=0):
+    if polygon is None or polygon.is_empty:
+        return []
+    
+    def ring_to_3d(ring):
+        return [(x, y, z) for x, y in ring.coords]
+    
+    coords_3d = []
+    if polygon.geom_type == 'Polygon':
+        coords_3d.append(ring_to_3d(polygon.exterior))
+        for interior in polygon.interiors:
+            coords_3d.append(ring_to_3d(interior))
+    elif polygon.geom_type == 'MultiPolygon':
+        for poly in polygon.geoms:
+            coords_3d.append(ring_to_3d(poly.exterior))
+            for interior in poly.interiors:
+                coords_3d.append(ring_to_3d(interior))
+    
+    return coords_3d
+
+
+def create_plane(bounds, z_level, color="white", alpha=0.3):
+    xmin, ymin, xmax, ymax = bounds
+    verts_3d = [
+        (xmin, ymin, z_level),
+        (xmax, ymin, z_level),
+        (xmax, ymax, z_level),
+        (xmin, ymax, z_level)
+    ]
+    poly = Poly3DCollection(
+        [verts_3d], 
+        facecolors=color, 
+        alpha=alpha, 
+        edgecolor="black"
+    )
+    return poly
+
+
+def plot_geodf_3d(ax, geodf, z_level, column=None, colormap='Blues', 
+                  alpha=0.8, edgecolor='black', linewidth=0.2, zpos=0):
+    if column is not None and column in geodf.columns:
+        vals = geodf[column].dropna()
+        vmin, vmax = vals.min(), vals.max()
+        norm = plt.Normalize(vmin, vmax)
+        cmap = plt.cm.get_cmap(colormap)
+    else:
+        cmap = plt.cm.get_cmap(colormap)
+        norm = None
+    
+    for idx, row in geodf.iterrows():
+        geom = row.geometry
+        if geom is None or geom.is_empty:
+            continue
+        
+        if norm is not None and column in geodf.columns and not np.isnan(row[column]):
+            color = cmap(norm(row[column]))
+        else:
+            color = cmap(0.5)
+        
+        # Convert geometry to 3D
+        rings_3d = polygon_to_3dcoords(geom, z=z_level)
+        for ring in rings_3d:
+            if len(ring) >= 3:
+                poly_3d = Poly3DCollection(
+                    [ring], 
+                    facecolors=color, 
+                    edgecolors=edgecolor,
+                    alpha=alpha, 
+                    linewidth=linewidth
+                )
+                poly_3d.set_sort_zpos(zpos)
+                ax.add_collection3d(poly_3d)
+
+
+def create_3d_stacked_map(gdf, z_levels, columns, colormaps, 
+                          title="3D Stacked Map Visualization",
+                          figsize=(20, 20), alpha_min=0.1, alpha_max=0.7,
+                          elev=30, azim=-60, save_path=None, dpi=300):
+
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection='3d')
+    
+    bounds = gdf.total_bounds
+    padding = (bounds[2] - bounds[0]) * 0.05
+    map_bounds = [
+        bounds[0] - padding, 
+        bounds[1] - padding,
+        bounds[2] + padding, 
+        bounds[3] + padding
+    ]
+    
+    min_z, max_z = min(z_levels), max(z_levels)
+    if max_z > min_z:
+        alpha_values = [
+            alpha_min + (alpha_max - alpha_min) * ((z - min_z)/(max_z - min_z)) 
+            for z in z_levels
+        ]
+    else:
+        alpha_values = [0.7] * len(z_levels)
+    
+    z_sorted = sorted(
+        list(zip(z_levels, columns, colormaps, alpha_values)), 
+        key=lambda x: x[0]
+    )
+    
+    for i, (z, col, cmap_name, plane_alpha) in enumerate(z_sorted):
+        plane = create_plane(map_bounds, z_level=z, color="white", alpha=plane_alpha)
+        plane.set_sort_zpos(i * 2)
+        ax.add_collection3d(plane)
+        
+        plot_geodf_3d(
+            ax=ax, 
+            geodf=gdf.dropna(subset=[col]), 
+            z_level=z,
+            column=col, 
+            colormap=cmap_name, 
+            alpha=1.0,
+            edgecolor='lightgrey', 
+            linewidth=0.2,
+            zpos=i*2 + 1
+        )
+    
+    ax.view_init(elev=elev, azim=azim)
+    
+    ax.set_xlim(map_bounds[0], map_bounds[2])
+    ax.set_ylim(map_bounds[1], map_bounds[3])
+    ax.set_zlim(0, max(z_levels)*1.2 if max_z > 0 else 1)
+    
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    
+    x_range = map_bounds[2] - map_bounds[0]
+    y_range = map_bounds[3] - map_bounds[1]
+    z_range = max_z * 1.2 if max_z > 0 else 1
+    ax.set_box_aspect((x_range, y_range, z_range*0.3))
+    
+    ax.set_axis_off()
+    if title:
+        plt.title(title, fontsize=14, pad=20)
+    plt.tight_layout()
     
     if save_path:
         plt.savefig(save_path, dpi=dpi, bbox_inches='tight')

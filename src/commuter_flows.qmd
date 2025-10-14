@@ -1,7 +1,7 @@
 ---
-title: "Multi-City Comparison of Commuter Flow Models"
-subtitle: "A comparative study of spatial interaction models across different urban environments"
-author: "Your Name"
+title: "WorkReach"
+subtitle: "Using economic complexity and informality to understand commuting flows"
+author: "Ollin D. Langle Chimal"
 date: today
 format:
   html:

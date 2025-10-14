@@ -1,5 +1,5 @@
 ---
-title: "Job Location Utility Analysis"
+title: "Job Location Utility Map"
 jupyter: python3
 ---
 
@@ -8,7 +8,7 @@ jupyter: python3
 ```{python}
 import geopandas as gpd
 import warnings
-from utils import process_utility_data, plot_utility_map
+from utils import *
 
 warnings.filterwarnings('ignore')
 ```
@@ -102,4 +102,107 @@ fig3, ax3 = plot_utility_map(
 print(f"Home location ECI: {zoom_gdf.loc[zoom_gdf['location_type'] == 'home', 'eci'].values[0]:.3f}")
 print(f"\nSelected job locations:")
 print(job_locations[['regime', 'utility', 'eci', 'distance_to_home']].to_string())
+```
+
+# Stacked Map
+
+```{python}
+gdf = gdf.loc[gdf["geomid"].str.startswith("09")].dropna()
+```
+
+```{python}
+gdf = gdf
+LAYERS = {
+    'z_levels': [0.1, 0.6, 1.2],
+    'columns': [
+        'population',
+        'eci',
+        'informality_rate'
+    ],
+    'colormaps': [
+        'YlOrRd',
+        'viridis',
+        'Blues'
+    ]
+}
+
+CAMERA = {
+    'elev': 30,
+    'azim': -60
+}
+```
+
+
+```{python}
+fig, ax = create_3d_stacked_map(
+    gdf=gdf,
+    z_levels=LAYERS['z_levels'],
+    columns=LAYERS['columns'],
+    colormaps=LAYERS['colormaps'],
+    # title="Stacked",
+    figsize=(20, 20),
+    alpha_min=0.1,
+    alpha_max=0.7,
+    elev=CAMERA['elev'],
+    azim=CAMERA['azim'],
+    # save_path='../../figs/cdmx_3d_stacked_main.png',
+    dpi=300
+)
+```
+
+
+
+```{python}
+fig2, ax2 = create_3d_stacked_map(
+    gdf=gdf,
+    z_levels=LAYERS['z_levels'],
+    columns=LAYERS['columns'],
+    colormaps=LAYERS['colormaps'],
+    title="",
+    figsize=(20, 20),
+    alpha_min=0.1,
+    alpha_max=0.7,
+    elev=45,
+    azim=-45,
+    # save_path='../../figs/cdmx_3d_stacked_alt1.png',
+    dpi=300
+)
+```
+
+
+```{python}
+fig3, ax3 = create_3d_stacked_map(
+    gdf=gdf,
+    z_levels=LAYERS['z_levels'],
+    columns=LAYERS['columns'],
+    colormaps=LAYERS['colormaps'],
+    title="",
+    figsize=(20, 20),
+    alpha_min=0.1,
+    alpha_max=0.7,
+    elev=20,
+    azim=-90,
+    # save_path='../../figs/cdmx_3d_stacked_side.png',
+    dpi=300
+)
+```
+
+## Layer Statistics
+
+```{python}
+print("Layer Statistics:")
+print("=" * 60)
+
+for i, col in enumerate(LAYERS['columns']):
+    if col in gdf.columns:
+        stats = gdf[col].describe()
+        print(f"\nLayer {i+1}: {col.replace('_', ' ').title()}")
+        print(f"  Z-level: {LAYERS['z_levels'][i]}")
+        print(f"  Colormap: {LAYERS['colormaps'][i]}")
+        print(f"  Mean: {stats['mean']:.2f}")
+        print(f"  Std: {stats['std']:.2f}")
+        print(f"  Min: {stats['min']:.2f}")
+        print(f"  Max: {stats['max']:.2f}")
+    else:
+        print(f"\nLayer {i+1}: {col} - Column not found in data")
 ```
