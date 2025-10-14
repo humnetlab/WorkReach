@@ -37,7 +37,7 @@ The analysis reveals distinct specialization patterns across cities, with the Ba
 
 ### WorkReach Model Framework
 
-![Model Overview](figs/four_panel_layout_workreach_font.pdf)
+![Model Overview](figs/four_panel_layout_workreach_font.png)
 
 The WorkReach model integrates commuting distance, economic complexity, and informality into a utility function with a behavioral transition mechanism. The model distinguishes between "near-by" and "far-away" regimes based on a distance threshold τ, where socioeconomic factors (ECI and informality) become increasingly important for distant work choices.
 
@@ -49,7 +49,7 @@ WorkReach achieves competitive performance with established spatial interaction 
 
 ### Accessibility Analysis
 
-![Accessibility Measures](figs/accessibility_boxplots_sharey.pdf)
+![Accessibility Measures](figs/accessibility_boxplots_sharey.png)
 
 Distance-weighted accessibility shows contrasting patterns: U.S. cities exhibit higher median values for high-informality neighborhoods, while Latin American cities show the opposite. However, consumer-surplus accessibility (incorporating job quality and behavioral preferences) consistently shows lower values for high-informality origins across all cities, revealing disparities masked by purely distance-based measures.
 
