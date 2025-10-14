@@ -2,6 +2,17 @@ import numpy as np
 import pandas as pd
 from typing import Optional
 from models import compute_utilities
+from sklearn.decomposition import PCA
+from scipy import stats
+
+def winsorise(series, lower=0.05, upper=.95):
+    lo, hi = series.quantile([lower, upper])
+    return series.clip(lo, hi)
+
+def city_pca(sub):
+    pcs = PCA(n_components=2).fit_transform(sub[["z_dist", "z_surp"]])
+    sub[["PC1","PC2"]] = pcs
+    return sub
 
 def compute_distance_weighted_accessibility(
     predicted_flows,
