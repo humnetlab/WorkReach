@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.colors import LinearSegmentedColormap
+from typing import List, Tuple
 
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
@@ -183,7 +185,7 @@ def plot_utility_parameters(utility_params_df):
 
 def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize=(24, 12)):
     """Create boxplots showing accessibility metrics across cities with sophisticated styling."""
-    
+
     sns.set_theme(context="talk", style="whitegrid")
     plt.rcParams.update({
         "axes.titlesize": 32,
@@ -192,27 +194,27 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
         "ytick.labelsize": 30,
         "figure.figsize": figsize
     })
-    
+
     PAL = ["#4C72B0", "#55A868", "#C44E52"]   # low/med/high
-    
+
     def add_box(ax, df, ycol, city, ylabel=False):
         order = ["Low", "High"]
         sns.boxplot(
             data=df, x="group_label", y=ycol, order=order,
             palette=PAL, linewidth=2, saturation=.85, showfliers=False, ax=ax)
-        
+
         for i, grp in enumerate(order):
             med = df.loc[df.group_label == grp, ycol].median()
             ax.text(i, med, f"{med:.2f}", ha="center", va="center",
                     color="white", fontweight="bold", fontsize=26,
                     bbox=dict(boxstyle="round,pad=0.15", fc="0.25", alpha=.8))
-        
+
         ax.set_title(city, pad=4)
         ax.set_xlabel("")
         ax.set_ylabel("Accessibility" if ylabel else "")
         ax.grid(axis="y", linestyle="--", alpha=.65)
         ax.set_facecolor("#F8F9FA")
-    
+
     fig, axes = plt.subplots(
         2, 4,
         figsize=figsize,
@@ -220,14 +222,14 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
         sharey='row',
         gridspec_kw={"hspace": 0.45, "wspace": 0.35}
     )
-    
+
     utility_data = combined_accessibility_df[
         combined_accessibility_df["Model"] == "Utility"
     ].copy()
-    
+
     for col, city in enumerate(city_order):
         subset = utility_data.query("City == @city")
-        
+
         try:
             if 'distance_weighted_accessibility' in utility_data.columns:
                 add_box(
@@ -235,50 +237,50 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
                     ycol="distance_weighted_accessibility",
                     city=city,
                     ylabel=True if col == 0 else False)
-            
+
             if 'surplus_accessibility' in utility_data.columns:
                 add_box(
                     axes[1, col], subset,
                     ycol="surplus_accessibility",
                     city="",
                     ylabel=True if col == 0 else False)
-                    
+
         except Exception as e:
             print(f"Error plotting accessibility for {city}: {e}")
-            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[0, col].transAxes)
-            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[1, col].transAxes)
-    
+
     fig.text(0.1, 0.97, "a)                         Distance-Weighted Accessibility",
              fontsize=32, fontweight="bold", va="top")
     fig.text(0.1, 0.49, "b)                         Consumer-Surplus Accessibility",
              fontsize=32, fontweight="bold", va="top")
-    
+
     plt.tight_layout(rect=[0, 0, 1, 0.92])
-    
+
     return fig
 
 def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
     """Create maps with accompanying histograms for key variables using sophisticated styling."""
-    
+
     sns.set_theme(context='talk', style='whitegrid')
     plt.rcParams.update({
         'axes.titlesize': 40, 'axes.labelsize': 38,
         'xtick.labelsize': 34, 'ytick.labelsize': 34,
         'legend.fontsize': 40, 'figure.figsize': figsize
     })
-    
+
     CITY_COLORS = dict(zip(city_order, sns.color_palette("tab10", 4)))
-    
+
     def tidy_ticks(ax, x_vals, y_vals, fs=22):
         ax.set_xticks([round(np.nanmin(x_vals), 2), round(np.nanmax(x_vals), 2)])
         ax.set_yticks([0, round(np.max(y_vals), 2)])
         ax.tick_params(axis='both', labelsize=fs)
-    
+
     def city_panel(ax, fig, gdf, value_col, cmap, city_name, bins=15, hist_bottom=0.34):
         vmin, vmax = gdf[value_col].min(), gdf[value_col].max()
-        
+
         gdf.plot(
             column=value_col, cmap=cmap, ax=ax,
             vmin=vmin, vmax=vmax, linewidth=0.001, edgecolor='none',
@@ -286,7 +288,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             missing_kwds=dict(color="lightgrey", label="NA")
         )
         ax.set_axis_off()
-        
+
         cax = inset_axes(ax, width="5%", height="70%", loc='center left',
                          bbox_to_anchor=(1.02, 0., 1, 1),
                          bbox_transform=ax.transAxes, borderpad=0)
@@ -300,42 +302,42 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
         cb.solids.set_edgecolor("none")
         cb.solids.set_linewidth(0)
         cb.solids.set_rasterized(True)
-        
+
         ax_pos = ax.get_position()
         hist_height = 0.09
         hist_width = ax_pos.width
         hist_left = ax_pos.x0
-        
+
         ax_hist = fig.add_axes([hist_left, hist_bottom, hist_width, hist_height])
         vals = gdf[value_col].dropna()
-        
+
         counts, edges = np.histogram(vals, bins=bins)
         bin_centers = 0.5 * (edges[:-1] + edges[1:])
         colormap = plt.get_cmap(cmap)
-        
+
         for i in range(len(counts)):
             color = colormap((bin_centers[i] - vmin) / (vmax - vmin))
             ax_hist.bar(bin_centers[i], counts[i],
                         width=edges[1] - edges[0],
                         color=color, edgecolor='black', align='center', rasterized=True)
-        
+
         for patch in ax_hist.patches:
             patch.set_rasterized(True)
-        
+
         tidy_ticks(ax_hist, edges, counts, fs=32)
         ax_hist.set_xlabel('')
         ax_hist.set_ylabel('Count', labelpad=2, fontsize=34)
         ax_hist.tick_params(axis='both', labelsize=30)
         sns.despine(ax=ax_hist)
-    
+
     fig, axes = plt.subplots(2, 4, figsize=figsize,
                              gridspec_kw={"hspace": 0.6, "wspace": 0.25})
     axes = axes.reshape(2, 4)
-    
+
     cmap_eci, cmap_inf = "viridis", "magma_r"
     hist_y_top = 0.50
     hist_y_bot = 0.03
-    
+
     # ECI
     for col, city in enumerate(city_order):
         try:
@@ -343,9 +345,9 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             city_panel(axes[0, col], fig, mzn, "eci", cmap_eci, city, hist_bottom=hist_y_top)
         except Exception as e:
             print(f"Error plotting ECI for {city}: {e}")
-            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+            axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[0, col].transAxes)
-    
+
     # Informality
     for col, city in enumerate(city_order):
         try:
@@ -353,32 +355,32 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             city_panel(axes[1, col], fig, mzn, "informality_rate", cmap_inf, city, hist_bottom=hist_y_bot)
         except Exception as e:
             print(f"Error plotting informality for {city}: {e}")
-            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+            axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[1, col].transAxes)
-    
+
 
     for c, city in enumerate(city_order):
         fig.text(0.17 + c * 0.219, 0.97, city, fontsize=50, fontweight="bold", ha="center", va="top")
-    
+
     for r, (row_label, metric_name) in enumerate([("a)", "ECI"), ("b)", "Informality Rate")]):
         ax_pos = axes[r, 0].get_position()
         row_top_y = ax_pos.y0 + ax_pos.height + 0.02
         fig.text(0.04, row_top_y, f"{row_label}  {metric_name}",
                  fontsize=44, fontweight='bold', va='bottom')
-    
+
     return fig
 
 
 def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18)):
     """Create spatial maps showing accessibility metrics across cities."""
-    
+
     sns.set_theme(context="talk", style="whitegrid")
     plt.rcParams.update({
         "axes.titlesize": 36, "axes.labelsize": 32,
         "xtick.labelsize": 28, "ytick.labelsize": 28,
         "legend.fontsize": 36, "figure.figsize": figsize
     })
-    
+
     def city_panel(ax, gdf, value_col, cmap, city_name,
                    diverging=False, colorbar=True):
         vals = gdf[value_col].dropna().values
@@ -386,7 +388,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
             ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
             ax.set_axis_off()
             return
-            
+
         vmin, vmax = (vals.min(), vals.max()) if not diverging else (-np.max(abs(vals)), np.max(abs(vals)))
 
         gdf.plot(column=value_col, cmap=cmap, ax=ax,
@@ -415,20 +417,20 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
             cb.solids.set_edgecolor("none")
             cb.solids.set_linewidth(0)
             cb.solids.set_rasterized(True)
-    
+
     ROW_INFO = [
         ("z_dist", "crest_r", False, "a)  Distance‑weighted Accessibility"),
         ("z_surp", "viridis", False, "b)  Consumer Surplus Accessibility"),
         ("diff",   "flare_r", False,  "c)  PCA 1st Dim. Accessibility")
     ]
-    
-    fig, axes = plt.subplots(3, 4, figsize=figsize, 
+
+    fig, axes = plt.subplots(3, 4, figsize=figsize,
                              gridspec_kw={"hspace": 0.25, "wspace": 0.12})
-    
+
     for c, city in enumerate(city_order):
         fig.text(0.20 + c * 0.21, 0.955, city,
                  fontsize=30, fontweight="bold", ha="center", va="top")
-    
+
     for r, (metric, cmap, div, row_label) in enumerate(ROW_INFO):
         for c, city in enumerate(city_order):
             ax = axes[r, c]
@@ -440,18 +442,240 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
                 city_panel(ax, gdf_city, metric, cmap, city, diverging=div)
             except Exception as e:
                 print(f"Error plotting {metric} for {city}: {e}")
-                ax.text(0.5, 0.5, f'Error: {str(e)[:20]}...', 
+                ax.text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                        ha='center', va='center', transform=ax.transAxes)
                 ax.set_axis_off()
-    
+
     for r, (_, _, _, row_label) in enumerate(ROW_INFO):
         ax_pos = axes[r, 0].get_position()
         row_top_y = ax_pos.y0 + ax_pos.height
 
         fig.text(0.07, row_top_y, row_label,
                  fontsize=26, fontweight="bold", va="bottom")
-    
+
     plt.tight_layout(rect=[0.06, 0.01, 0.98, 0.91])
-    
+
     return fig
 
+
+######## Utility Heatmaps ########
+
+
+
+def create_colormaps():
+    """Create custom colormaps for the three subplots."""
+    cmap_distance_eci = LinearSegmentedColormap.from_list(
+        'distance_eci', ['#d1e6fa', '#08519c']
+    )
+    cmap_distance_informality = LinearSegmentedColormap.from_list(
+        'distance_informality', ['#d8f3d8', '#2ca02c']
+    )
+    cmap_eci_informality = LinearSegmentedColormap.from_list(
+        'eci_informality', ['#faddda', '#d62728']
+    )
+    return cmap_distance_eci, cmap_distance_informality, cmap_eci_informality
+
+
+def calculate_substitution_rates(beta_values, distance_idx, eci_idx, informality_idx):
+    """Calculate marginal rates of substitution between variables."""
+    beta_distance = beta_values[distance_idx]
+    beta_eci = beta_values[eci_idx]
+    beta_informality = beta_values[informality_idx]
+
+    substitution_rate_distance_eci = beta_eci / beta_distance
+    substitution_rate_distance_informality = beta_informality / beta_distance
+    substitution_rate_eci_informality = beta_informality / beta_eci
+
+    return (
+        substitution_rate_distance_eci,
+        substitution_rate_distance_informality,
+        substitution_rate_eci_informality
+    )
+
+
+def create_meshgrids(distance_range, eci_range, informality_range):
+    """Create meshgrids for all three variable combinations."""
+    distance = np.linspace(*distance_range, 100)
+    eci = np.linspace(*eci_range, 100)
+    informality = np.linspace(*informality_range, 100)
+
+    x_distance, y_eci = np.meshgrid(distance, eci)
+    x_distance2, y_informality = np.meshgrid(distance, informality)
+    x_eci, y_informality2 = np.meshgrid(eci, informality)
+
+    return (x_distance, y_eci), (x_distance2, y_informality), (x_eci, y_informality2)
+
+
+def calculate_utilities(beta_values, meshgrids, distance_idx, eci_idx, informality_idx):
+    """Calculate utility values for all three variable combinations."""
+    (x_distance, y_eci), (x_distance2, y_informality), (x_eci, y_informality2) = meshgrids
+
+    beta_distance = beta_values[distance_idx]
+    beta_eci = beta_values[eci_idx]
+    beta_informality = beta_values[informality_idx]
+
+    utility_distance_eci = beta_distance * x_distance + beta_eci * y_eci
+    utility_distance_informality = beta_distance * x_distance2 + beta_informality * y_informality
+    utility_eci_informality = beta_eci * x_eci + beta_informality * y_informality2
+
+    return utility_distance_eci, utility_distance_informality, utility_eci_informality
+
+
+def create_subplot(ax, x_mesh, y_mesh, utility, cmap, xlabel, ylabel, title,
+                   substitution_rate, beta_num, beta_denom, beta_x, beta_y):
+    """Create a single subplot with utility heatmap, contours, and annotations."""
+    im = ax.contourf(x_mesh, y_mesh, utility, levels=100, cmap=cmap, alpha=0.99)
+
+    mid_x_idx = x_mesh.shape[1] // 2
+    mid_y_idx = y_mesh.shape[0] // 2
+    center_utility = utility[mid_y_idx, mid_x_idx]
+    delta_u = 0.5
+    u_levels = [center_utility + i * delta_u for i in [-2, -1, 0, 1, 2]]
+    linestyles = [':', '--', '-', '--', ':']
+    linewidths = [2] * 5
+    fmt = lambda x: f"{x:.2f}"
+
+    for i, level in enumerate(u_levels):
+        contour = ax.contour(x_mesh, y_mesh, utility,
+                             levels=[level],
+                             colors='black',
+                             linestyles=[linestyles[i]],
+                             linewidths=[linewidths[i]])
+        if i % 2 == 0:
+            try:
+                ax.clabel(contour, inline=True, fontsize=36, fmt=fmt, inline_spacing=50)
+            except Exception:
+                pass
+
+    x_pos = 0.25 if substitution_rate < 0 else 0.75
+    x_col = int(x_mesh.shape[1] * x_pos)
+    x_arrow = x_mesh[0, x_col]
+
+    util_at_x = utility[:, x_col]
+    y_coords = y_mesh[:, x_col]
+    idx_center = np.abs(util_at_x - center_utility).argmin()
+    y_start = y_coords[idx_center]
+    next_utility = center_utility + delta_u
+    idx_next = np.abs(util_at_x - next_utility).argmin()
+    y_end = y_coords[idx_next]
+
+    ax.annotate('', xy=(x_arrow, y_end), xytext=(x_arrow, y_start),
+                arrowprops=dict(arrowstyle='<->', color='black', lw=4))
+
+    x_range = np.max(x_mesh) - np.min(x_mesh)
+    y_range = np.max(y_mesh) - np.min(y_mesh)
+    x_offset = 0.03 * x_range
+    y_offset = 0.01 * y_range
+
+    delta_pos = (x_arrow + x_offset if beta_x > 0 else x_arrow - x_offset)
+    ax.text(delta_pos, (y_start + y_end)/2, r'$\Delta$', va='center',
+            ha='left' if beta_x > 0 else 'right', fontsize=49)
+
+    x_target = (center_utility - beta_y * y_end) / beta_x if beta_x != 0 else x_arrow + 0.1 * x_range
+    x_target = np.clip(x_target, np.min(x_mesh), np.max(x_mesh))
+
+    ax.annotate('', xy=(x_target, y_end), xytext=(x_arrow, y_end),
+                arrowprops=dict(arrowstyle='<->', color='black', lw=4))
+
+    y_text_offset = y_end + y_offset if beta_y > 0 else y_end - y_offset
+    ax.text((x_arrow + x_target)/2, y_text_offset, f'{abs(substitution_rate):.2f}' + r'$\Delta$',
+            va='bottom', ha='center', fontsize=49)
+
+    ax.set_xlabel(xlabel, fontsize=49)
+    ax.set_ylabel(ylabel, fontsize=49)
+    ax.tick_params(axis='x', pad=18)
+    ax.tick_params(axis='y', pad=18)
+
+    ax.set_title(f"{title}\n${beta_num}/{beta_denom} = {substitution_rate:.2f}$",
+                fontsize=52, fontweight='bold', pad=40)
+
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{x:.2f}"))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.2f}"))
+
+    ax.tick_params(axis='both', labelsize=43)
+    ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(4))
+
+    cbar = plt.colorbar(im, ax=ax, shrink=0.85)
+
+    from matplotlib.ticker import FixedLocator
+    vmin, vmax = utility.min(), utility.max()
+    ticks = np.linspace(vmin, vmax, 5)
+    cbar.set_ticks(ticks)
+    cbar.ax.set_yticklabels([f"{t:.2f}" for t in ticks], fontsize=43)
+
+    cbar.set_label('Utility', fontsize=49)
+    cbar.ax.tick_params(labelsize=43)
+
+    return im
+
+
+def plot_utility_heatmaps(
+    optimized_params: np.ndarray,
+    param_names: List[str] = None,
+    distance_idx: int = 0,
+    eci_idx: int = 1,
+    informality_idx: int = 2,
+    distance_range: Tuple[float, float] = (0, 1),
+    eci_range: Tuple[float, float] = (0, 1),
+    informality_range: Tuple[float, float] = (0, 1),
+    figsize: Tuple[int, int] = (48, 14)
+) -> plt.Figure:
+    if param_names is None:
+        param_names = ["distance", "ECI", "informality"]
+
+    beta_values = optimized_params[:3]
+    beta_distance = beta_values[distance_idx]
+    beta_eci = beta_values[eci_idx]
+    beta_informality = beta_values[informality_idx]
+
+    distance_name = param_names[distance_idx]
+    eci_name = param_names[eci_idx]
+    informality_name = param_names[informality_idx]
+
+    sub_rate_de, sub_rate_di, sub_rate_ei = calculate_substitution_rates(
+        beta_values, distance_idx, eci_idx, informality_idx
+    )
+
+    meshgrids = create_meshgrids(distance_range, eci_range, informality_range)
+    (x_distance, y_eci), (x_distance2, y_informality), (x_eci, y_informality2) = meshgrids
+
+    util_de, util_di, util_ei = calculate_utilities(
+        beta_values, meshgrids, distance_idx, eci_idx, informality_idx
+    )
+
+    cmap_de, cmap_di, cmap_ei = create_colormaps()
+
+    fig = plt.figure(figsize=figsize)
+    gs = GridSpec(1, 3, figure=fig, wspace=0.4)
+
+    ax1 = fig.add_subplot(gs[0, 0])
+    create_subplot(
+        ax1, x_distance, y_eci, util_de, cmap_de,
+        f'{distance_name}', f'{eci_name}', f'{distance_name} vs. {eci_name}',
+        sub_rate_de, r'\beta_{' + eci_name + '}', r'\beta_{' + distance_name + '}',
+        beta_distance, beta_eci
+    )
+
+    ax2 = fig.add_subplot(gs[0, 1])
+    create_subplot(
+        ax2, x_distance2, y_informality, util_di, cmap_di,
+        f'{distance_name}', f'{informality_name}', f'{distance_name} vs. {informality_name}',
+        sub_rate_di, r'\beta_{' + informality_name + '}', r'\beta_{' + distance_name + '}',
+        beta_distance, beta_informality
+    )
+
+    ax3 = fig.add_subplot(gs[0, 2])
+    create_subplot(
+        ax3, x_eci, y_informality2, util_ei, cmap_ei,
+        f'{eci_name}', f'{informality_name}', f'{eci_name} vs. {informality_name}',
+        sub_rate_ei, r'\beta_{' + informality_name + '}', r'\beta_{' + eci_name + '}',
+        beta_eci, beta_informality
+    )
+
+    for ax in [ax1, ax2, ax3]:
+        ax.set_box_aspect(1)
+
+    fig.subplots_adjust(top=0.87, bottom=0.12, left=0.05, right=0.95, wspace=0.4)
+
+    return fig
