@@ -466,6 +466,8 @@ city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
 accessibility_fig = create_accessibility_boxplots(combined_accessibility_df, city_order)
 # accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
 #                           facecolor='white', edgecolor='none')
+# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.png', dpi=300,
+#                           facecolor='white', edgecolor='none')
 plt.show()
 ```
 
@@ -565,6 +567,9 @@ try:
     fig.text(0.02, 0.48, "d)", fontsize=28, fontweight="bold", ha="left", va="top", color="black")
 
     # fig.savefig("../figs/four_panel_layout_workreach_font.pdf", dpi=300, bbox_inches="tight")
+    # fig.savefig("../figs/four_panel_layout_workreach_font.png", dpi=300, bbox_inches="tight",
+    #             facecolor='white', edgecolor='none')
+
     # plt.show()
 
 except FileNotFoundError:
