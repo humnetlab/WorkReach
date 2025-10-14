@@ -25,35 +25,35 @@ The analysis covers four major urban areas:
 
 ### Spatial Distribution of Economic Complexity and Informality
 
-![Economic Complexity and Informality Distribution](figures/maps_hist.png)
+![Economic Complexity and Informality Distribution](figs/maps_hist.png)
 
 The four cities exhibit distinct spatial patterns in both Economic Complexity Index (ECI) and informality rates. Both variables show significant spatial autocorrelation, with Latin American cities displaying moderate negative correlation between informality and ECI (ρ ∼ −0.4), indicating spatial segregation where informal workers live far from high-complexity economic areas. In contrast, U.S. cities show near-zero correlation (ρ ∼ 0), suggesting more mixed spatial arrangements.
 
 ### Multi-scale Economic Structure and Mobility Patterns
 
-![Multi-scale Analysis](figures/complexity_plots.png)
+![Multi-scale Analysis](figs/complexity_plots.png)
 
 The analysis reveals distinct specialization patterns across cities, with the Bay Area showing higher Product Complexity Index (PCI) in information sectors. U.S. cities exhibit longer commute distances, while disaggregating by socioeconomic characteristics shows that workers from high-informality areas in Latin America travel farthest to reach high-ECI destinations, whereas in U.S. cities, the longest commutes are made by workers from low-informality areas.
 
 ### WorkReach Model Framework
 
-![Model Overview](figures/four_panel_layout_workreach_font.pdf)
+![Model Overview](figs/four_panel_layout_workreach_font.pdf)
 
 The WorkReach model integrates commuting distance, economic complexity, and informality into a utility function with a behavioral transition mechanism. The model distinguishes between "near-by" and "far-away" regimes based on a distance threshold τ, where socioeconomic factors (ECI and informality) become increasingly important for distant work choices.
 
 ### Model Performance Comparison
 
-![Performance Comparison](figures/model_performance.png)
+![Performance Comparison](figs/model_performance.png)
 
 WorkReach achieves competitive performance with established spatial interaction models across all four cities. The model demonstrates comparable predictive accuracy while providing enhanced interpretability through behavioral coefficients that reveal how workers trade distance for job quality.
 
 ### Accessibility Analysis
 
-![Accessibility Measures](figures/accessibility_boxplots_sharey.pdf)
+![Accessibility Measures](figs/accessibility_boxplots_sharey.pdf)
 
 Distance-weighted accessibility shows contrasting patterns: U.S. cities exhibit higher median values for high-informality neighborhoods, while Latin American cities show the opposite. However, consumer-surplus accessibility (incorporating job quality and behavioral preferences) consistently shows lower values for high-informality origins across all cities, revealing disparities masked by purely distance-based measures.
 
-![Spatial Accessibility Distribution](figures/accessibility_maps_space.png)
+![Spatial Accessibility Distribution](figs/accessibility_maps_space.png)
 
 The spatial distribution of accessibility measures reveals peripheral locations, especially in western Rio de Janeiro, as the most underserved areas. The combined accessibility measure (PCA first dimension) identifies regions with advantages or disadvantages in both physical proximity and utility-based attractiveness.
 
