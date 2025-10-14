@@ -1,0 +1,105 @@
+---
+title: "Job Location Utility Analysis"
+jupyter: python3
+---
+
+## Setup
+
+```{python}
+import geopandas as gpd
+import warnings
+from utils import process_utility_data, plot_utility_map
+
+warnings.filterwarnings('ignore')
+```
+
+## Configuration
+
+```{python}
+CLOSE_JOB_IDX = 11
+FAR_JOB_IDX = 40
+
+PLOT_SIZE_KM = 10
+CLOSE_REGIME_RADIUS_M = 3000
+```
+
+## Load Data
+
+```{python}
+# Load geodataframe with economic complexity data
+gdf = gpd.read_file(
+    "../../data/cdmx_map_informality_eci.geojson"
+)
+```
+
+## Data Processing
+
+Compute utilities, select home and job locations.
+
+```{python}
+zoom_gdf, home_coords, job_locations, zoom_bounds = process_utility_data(
+    gdf=gdf,
+    close_regime_radius=CLOSE_REGIME_RADIUS_M,
+    close_job_idx=CLOSE_JOB_IDX,
+    far_job_idx=FAR_JOB_IDX,
+    plot_size=PLOT_SIZE_KM,
+    random_state=42
+)
+```
+
+## Visualizations
+
+### Map 1: Economic Complexity Index (ECI)
+
+```{python}
+fig1, ax1 = plot_utility_map(
+    zoom_gdf=zoom_gdf,
+    home_coords=home_coords,
+    job_locations=job_locations,
+    zoom_bounds=zoom_bounds,
+    close_regime_radius=CLOSE_REGIME_RADIUS_M,
+    column='eci',
+    cmap='viridis',
+    figsize=(15, 15)
+)
+```
+
+### Map 2: Utility Distribution (Viridis)
+
+```{python}
+fig2, ax2 = plot_utility_map(
+    zoom_gdf=zoom_gdf,
+    home_coords=home_coords,
+    job_locations=job_locations,
+    zoom_bounds=zoom_bounds,
+    close_regime_radius=CLOSE_REGIME_RADIUS_M,
+    column='utility',
+    cmap='viridis',
+    figsize=(15, 15)
+)
+```
+
+### Map 3: Utility Distribution (Plasma - Final)
+
+```{python}
+fig3, ax3 = plot_utility_map(
+    zoom_gdf=zoom_gdf,
+    home_coords=home_coords,
+    job_locations=job_locations,
+    zoom_bounds=zoom_bounds,
+    close_regime_radius=CLOSE_REGIME_RADIUS_M,
+    column='utility',
+    cmap='plasma',
+    figsize=(15, 15),
+    save_path='../../figs/cdmx_utility_job_location.png',
+    dpi=300
+)
+```
+
+## Summary Statistics
+
+```{python}
+print(f"Home location ECI: {zoom_gdf.loc[zoom_gdf['location_type'] == 'home', 'eci'].values[0]:.3f}")
+print(f"\nSelected job locations:")
+print(job_locations[['regime', 'utility', 'eci', 'distance_to_home']].to_string())
+```
