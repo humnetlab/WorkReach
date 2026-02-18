@@ -1,0 +1,369 @@
+---
+title: "WorkReach"
+subtitle: "Using economic complexity and informality to understand commuting flows"
+author: "Ollin D. Langle Chimal"
+date: today
+format:
+  html:
+    page-layout: full
+    body-width: 100%
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: cosmo
+    html-math-method: katex
+  pdf:
+    pdf-engine: lualatex
+    toc: true
+    number-sections: true
+    colorlinks: true
+jupyter: python3
+---
+
+## Introduction
+
+This notebook compares different models for predicting commuter flows across four major urban areas:
+
+- Rio de Janeiro, Brazil
+- Los Angeles, USA
+- Bay Area, USA
+- Mexico City, Mexico
+
+We analyze multiple models:
+
+1. Gravity model (power law decay)
+2. Extended Radiation model
+3. BMS Plausible model
+4. Utility model (considering distance, economic complexity, and informality)
+
+## Setup and Imports
+
+```{python}
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+from matplotlib.gridspec import GridSpec
+import matplotlib.colors as mcolors
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+import matplotlib.image as mpimg
+from matplotlib.gridspec import GridSpec
+from scipy import stats
+import importlib
+
+
+from data_processing import *
+from models import *
+from evaluation import *
+from visualization import *
+from accessibility import *
+
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.rcParams.update({
+    'font.family': 'serif',
+    'font.size': 12,
+    'axes.labelsize': 14,
+    'axes.titlesize': 16,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
+    'legend.fontsize': 12,
+    'figure.titlesize': 18
+})
+
+warnings.filterwarnings('ignore')
+
+CITY_COLORS = {
+    "Rio de Janeiro": "#1f77b4",  
+    "Los Angeles": "#ff7f0e",     
+    "Bay Area": "#2ca02c",        
+    "Mexico City": "#d62728"      
+}
+
+MODEL_COLORS = {
+    "Utility": "#9b59b6",      
+    "Gravity": "#f39c12",      
+    "Radiation_Ext": "#1abc9c", 
+    "BMS_Plausible": "#34495e" 
+}
+```
+
+Adding this chunk here to reload auxiliary files when debugging. This allows for reloading the library if something changes there without restarting the kernel and loosing all of our variables.
+
+```{python}
+importlib.reload(data_processing)
+importlib.reload(models)
+importlib.reload(evaluation)
+importlib.reload(visualization)
+importlib.reload(accessibility)
+```
+
+## Load Data for All Cities
+
+```{python}
+city_paths = {
+    "Bay Area": {
+        "mzn_path": "../data/h3_bay_8.geojson",
+        "flows_path": "../data/bay_flows_h3_8.csv"
+    },
+    "Los Angeles": {
+        "mzn_path": "../data/h3_la_8.geojson",
+        "flows_path": "../data/la_flows_h3_8.csv"
+    },
+    "Mexico City": {
+        "mzn_path": "../data/h3_cdmx_8.geojson",
+        "flows_path": "../data/cdmx_flows_h3_8.csv"
+    },
+    "Rio de Janeiro": {
+        "mzn_path": "../data/map_informality_eci.geojson",
+        "flows_path": "../data/rio_flows_h3_8h3.csv"
+    }
+}
+
+def process_all_cities(city_paths):
+    results = {}
+
+    for city_name, paths in city_paths.items():
+        print(f"\nProcessing {city_name}...")
+
+        try:
+            city_data = {}
+            (aligned_data, mzn, distance_matrix, eci_matrix, flows_matrix,
+             home_matrix, informality_matrix, _) = load_and_prepare_data(
+                paths["mzn_path"], paths["flows_path"], city_name)
+
+            median_point = mzn["informality_rate"].median()
+            aligned_data['informality_level'] = np.where(
+                aligned_data['informality_rate'] < median_point, 'Low', 'High'
+            )
+
+            (distance, distance_log, eci, flows, informality,
+             home_population, work_population,distance_min,
+             distance_diff, eci_min, eci_diff) = preprocess_data(
+                home_matrix, distance_matrix, eci_matrix, flows_matrix, informality_matrix)
+
+            flow_map_data = prepare_flow_map_data(aligned_data, mzn)
+
+            city_data["aligned_data"] = aligned_data
+            city_data["mzn"] = mzn
+            city_data["distance_matrix"] = distance_matrix
+            city_data["eci_matrix"] = eci_matrix
+            city_data["flows_matrix"] = flows_matrix
+            city_data["home_matrix"] = home_matrix
+            city_data["informality_matrix"] = informality_matrix
+            city_data["distance"] = distance
+            city_data["distance_log"] = distance_log
+            city_data["eci"] = eci
+            city_data["eci_min"] = eci_min
+            city_data["eci_diff"] = eci_diff
+            city_data["distance_min"] = distance_min
+            city_data["distance_diff"] = distance_diff
+            city_data["flows"] = flows
+            city_data["informality"] = informality
+            city_data["home_population"] = home_population
+            city_data["work_population"] = work_population
+            city_data["flow_map_data"] = flow_map_data
+
+            print(f"  Loaded data: {len(mzn)} zones, {len(aligned_data)} flows")
+
+            results[city_name] = city_data
+
+        except Exception as e:
+            print(f"Error processing {city_name}: {str(e)}")
+
+    return results
+
+all_city_data = process_all_cities(city_paths)
+```
+
+## City Characteristics and Data Summary
+
+```{python}
+all_summaries = []
+
+for city_name, city_data in all_city_data.items():
+    summary = create_dataset_summary_table(
+        city_data["aligned_data"],
+        city_data["mzn"],
+        city_name
+    )
+    all_summaries.append(summary)
+
+combined_summary = pd.concat(all_summaries)
+
+print("City Comparison - Basic Statistics:")
+display(combined_summary)
+```
+
+## Fit Models for All Cities
+
+```{python}
+def fit_all_models(city_data):
+    models_dict = {}
+
+    try:
+        print("  Optimizing Utility model...")
+        optimized_params_utility, predicted_flows_utility = optimize_utility_model(
+            city_data["distance_log"], city_data["eci"], city_data["flows"],
+            city_data["informality"], city_data["home_population"], True
+        )
+        models_dict["Utility"] = (optimized_params_utility, predicted_flows_utility, 5)
+    except Exception as e:
+        print(f"  Error in Utility model: {str(e)}")
+
+    try:
+        print("  Optimizing Gravity model with power law decay...")
+        optimized_params_gravity_pow, predicted_flows_gravity_pow = optimize_gravity_pow_model(
+            city_data["distance"], city_data["home_population"],
+            city_data["work_population"], city_data["flows"]
+        )
+        models_dict["Gravity"] = (optimized_params_gravity_pow, predicted_flows_gravity_pow, 4)
+    except Exception as e:
+        print(f"  Error in Gravity model (power law): {str(e)}")
+
+    # try:
+    #     print("  Optimizing Extended Radiation model...")
+    #     alpha_opt, predicted_flows_radiation_ext = optimize_radiation_extended(
+    #         city_data["distance"], city_data["home_population"],
+    #         city_data["work_population"], city_data["flows"]
+    #     )
+    #     models_dict["Radiation_Ext"] = (alpha_opt, predicted_flows_radiation_ext, 1)
+    # except Exception as e:
+    #     print(f"  Error in Radiation Extended model: {str(e)}")
+
+    try:
+        print("  Optimizing BMS Plausible model...")
+        optimized_params_bms_plausible, predicted_flows_bms_plausible = optimize_bms_plausible_model(
+            city_data["distance"], city_data["home_population"],
+            city_data["work_population"], city_data["flows"]
+        )
+        models_dict["BMS_Plausible"] = (optimized_params_bms_plausible, predicted_flows_bms_plausible, 6)
+    except Exception as e:
+        print(f"  Error in BMS Plausible model: {str(e)}")
+
+    return models_dict
+
+all_models = {}
+for city_name, city_data in all_city_data.items():
+    print(f"\nFitting models for {city_name}...")
+    all_models[city_name] = fit_all_models(city_data)
+```
+
+## Model Performance Comparison Across Cities
+
+```{python}
+def extract_performance_metrics(all_city_data, all_models):
+    performance_dfs = []
+
+    for city_name, models_dict in all_models.items():
+        city_data = all_city_data[city_name]
+
+        comparison_df, _ = compare_models(models_dict, city_data["flows"])
+        comparison_df["City"] = city_name
+
+        performance_dfs.append(comparison_df)
+
+    return pd.concat(performance_dfs)
+
+all_performance = extract_performance_metrics(all_city_data, all_models)
+
+def create_metric_pivot(all_performance, metric):
+    pivot = all_performance.pivot(index="Model", columns="City", values=metric)
+    pivot.loc["Average"] = pivot.mean()
+    pivot["Average"] = pivot.mean(axis=1)
+    return pivot
+
+cpc_pivot = create_metric_pivot(all_performance, "CPC")
+print("\nCommon Part of Commuters (CPC) by City and Model:")
+display(cpc_pivot.style.format("{:.4f}"))
+
+corr_pivot = create_metric_pivot(all_performance, "Correlation")
+print("\nCorrelation by City and Model:")
+display(corr_pivot.style.format("{:.4f}"))
+```
+
+## Model Performance Visualization
+
+```{python}
+model_types = ["Gravity", "Radiation_Ext", "Utility", "BMS_Plausible"]
+cities_list = list(all_city_data.keys())
+
+fig, axes = plt.subplots(len(cities_list), len(model_types), figsize=(16, 16))
+
+for i, city in enumerate(cities_list):
+    city_data = all_city_data[city]
+    city_models = all_models[city]
+    flows = city_data["flows"]
+
+    for j, model in enumerate(model_types):
+        ax = axes[i, j]
+
+        if model not in city_models:
+            ax.text(0.5, 0.5, "Model not available", ha='center', va='center')
+            continue
+
+        _, predicted_flows, _ = city_models[model]
+
+        flows_flat = flows.flatten()
+        pred_flat = np.round(predicted_flows).flatten()
+
+        mask = ~np.isnan(flows_flat) & ~np.isnan(pred_flat)
+        flows_plot = flows_flat[mask]
+        pred_plot = pred_flat[mask]
+
+        from scipy.stats import pearsonr
+        corr = np.corrcoef(flows_plot, pred_plot)[0, 1]
+        cpc = common_part_of_commuters(flows_plot, pred_plot)
+
+        ax.scatter(flows_plot, pred_plot, s=10, alpha=0.01, color=MODEL_COLORS.get(model, "blue"), rasterized=True)
+
+        max_val = max(np.max(flows_plot), np.max(pred_plot))
+        ax.plot([0, max_val], [0, max_val], 'r--', alpha=0.88)
+
+        ax.text(0.05, 0.95, f"$\\rho$ = {corr:.2f}\nCPC = {cpc:.2f}",
+            transform=ax.transAxes, fontsize=20,
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+
+        if model == "Utility":
+            model_display = "WorkReach"
+        else:
+            model_display = model.replace("_", " ")
+
+        if i == 0:
+            ax.set_title(model_display)
+
+        if j == 0:
+            ax.set_ylabel(f"{city}\nPredicted Flows")
+
+        if i == len(cities_list) - 1:
+            ax.set_xlabel("Observed Flows")
+
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+
+        ax.set_xlim(1, max_val*1.1)
+        ax.set_ylim(1, max_val*1.1)
+
+# fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
+# fig.savefig("../figs/model_performance.png", dpi=300, bbox_inches="tight")
+
+plt.tight_layout()
+plt.show()
+```
+
+````````
+```{python}
+# Example of fitting models for a single city (e.g., Rio de Janeiro)
+optimized_params_utility, predicted_flows_utility = optimize_utility_model(
+    data["distance"], data["eci"], data["flows"],
+    data["informality"], data["home_population"], True
+)
+
+optimized_params_gravity_pow, predicted_flows_gravity_pow = optimize_gravity_pow_model(
+    data["distance"], data["home_population"],
+    data["work_population"], data["flows"]
+)
+```
