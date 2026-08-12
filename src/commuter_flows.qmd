@@ -338,6 +338,8 @@ for i, city in enumerate(cities_list):
 
         if j == 0:
             ax.set_ylabel(f"{city}\nPredicted Flows")
+            ax.text(-0.42, 1.02, f"{chr(97 + i)})", transform=ax.transAxes,
+                    fontsize=26, fontweight="bold", va="bottom", ha="left")
 
         if i == len(cities_list) - 1:
             ax.set_xlabel("Observed Flows")

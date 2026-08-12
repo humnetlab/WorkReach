@@ -4,6 +4,14 @@ import geopandas as gpd
 from typing import Tuple
 from haversine import haversine, Unit
 
+# Projected CRS by city, used for areas, distances and map scale bars.
+CITY_PROJECTIONS = {
+    "Rio de Janeiro": 31983,
+    "Bay Area": 26910,
+    "Los Angeles": 26911,
+    "Mexico City": 32614
+}
+
 def load_and_prepare_data(
     mzn_path: str,
     flows_path: str,
@@ -246,12 +254,7 @@ def create_dataset_summary_table(
     pop_max = mzn.loc[mzn['geomid'].isin(all_geoms), 'population'].max()
 
 
-    city_projections = {
-        "Rio de Janeiro": 31983,
-        "Bay Area": 26910,
-        "Los Angeles": 26911,
-        "Mexico City": 32614
-    }
+    city_projections = CITY_PROJECTIONS
 
 
     temp_gdf = mzn.loc[mzn['geomid'].isin(all_geoms), ['geomid', 'geometry']].copy()

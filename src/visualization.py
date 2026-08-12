@@ -7,7 +7,24 @@ from matplotlib.gridspec import GridSpec
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib_scalebar.scalebar import ScaleBar
 from typing import List, Tuple
+from data_processing import CITY_PROJECTIONS
+
+
+def project_for_mapping(gdf, city_name: str):
+    """Reproject to the city's metric CRS so distances on the map are in metres."""
+    return gdf.to_crs(epsg=CITY_PROJECTIONS.get(city_name, 3857))
+
+def add_scale_bar(ax, location: str = 'lower right', font_size: int = 20) -> None:
+    """Add a scale bar to a map drawn in a metric CRS."""
+    ax.add_artist(ScaleBar(
+        1, "m",
+        location=location,
+        box_alpha=0.6,
+        pad=0.4,
+        font_properties={"size": font_size}
+    ))
 
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
@@ -279,6 +296,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
         ax.tick_params(axis='both', labelsize=fs)
 
     def city_panel(ax, fig, gdf, value_col, cmap, city_name, bins=15, hist_bottom=0.34):
+        gdf = project_for_mapping(gdf, city_name)
         vmin, vmax = gdf[value_col].min(), gdf[value_col].max()
 
         gdf.plot(
@@ -288,6 +306,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             missing_kwds=dict(color="lightgrey", label="NA")
         )
         ax.set_axis_off()
+        add_scale_bar(ax)
 
         cax = inset_axes(ax, width="5%", height="70%", loc='center left',
                          bbox_to_anchor=(1.02, 0., 1, 1),
@@ -383,6 +402,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
 
     def city_panel(ax, gdf, value_col, cmap, city_name,
                    diverging=False, colorbar=True):
+        gdf = project_for_mapping(gdf, city_name)
         vals = gdf[value_col].dropna().values
         if len(vals) == 0:
             ax.text(0.5, 0.5, 'No data', ha='center', va='center', transform=ax.transAxes)
@@ -396,6 +416,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
                  missing_kwds=dict(color="lightgrey", label="NA"))
         ax.collections[0].set_rasterized(True)
         ax.set_axis_off()
+        add_scale_bar(ax)
 
         if colorbar:
             cax = inset_axes(
