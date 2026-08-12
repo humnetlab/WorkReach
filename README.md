@@ -51,7 +51,7 @@ WorkReach achieves competitive performance with established spatial interaction 
 
 ![Accessibility Measures](figs/accessibility_boxplots_sharey.png)
 
-Distance-weighted accessibility shows contrasting patterns: U.S. cities exhibit higher median values for high-informality neighborhoods, while Latin American cities show the opposite. However, consumer-surplus accessibility (incorporating job quality and behavioral preferences) consistently shows lower values for high-informality origins across all cities, revealing disparities masked by purely distance-based measures.
+Distance-weighted accessibility shows contrasting patterns: U.S. cities exhibit higher median values for high-informality neighborhoods, while Latin American cities show the opposite. However, consumer-surplus accessibility (incorporating job quality and behavioral preferences) shows lower values for high-informality origins in every city except Mexico City, revealing disparities masked by purely distance-based measures.
 
 ![Spatial Accessibility Distribution](figs/accessibility_maps_space.png)
 
