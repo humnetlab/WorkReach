@@ -200,14 +200,15 @@ display(combined_summary)
 ## Fit Models for All Cities
 
 ```{python}
-def fit_all_models(city_data):
+def fit_all_models(city_data, city_name, optimized=False):
     models_dict = {}
 
     try:
         print("  Optimizing Utility model...")
         optimized_params_utility, predicted_flows_utility = optimize_utility_model(
             city_data["distance_log"], city_data["eci"], city_data["flows"],
-            city_data["informality"], city_data["home_population"], True
+            city_data["informality"], city_data["home_population"], True,
+            city_name, optimized
         )
         models_dict["Utility"] = (optimized_params_utility, predicted_flows_utility, 5)
     except Exception as e:
@@ -248,7 +249,7 @@ def fit_all_models(city_data):
 all_models = {}
 for city_name, city_data in all_city_data.items():
     print(f"\nFitting models for {city_name}...")
-    all_models[city_name] = fit_all_models(city_data)
+    all_models[city_name] = fit_all_models(city_data, city_name)
 ```
 
 ## Model Performance Comparison Across Cities
@@ -359,7 +360,8 @@ plt.show()
 # Example of fitting models for a single city (e.g., Rio de Janeiro)
 optimized_params_utility, predicted_flows_utility = optimize_utility_model(
     data["distance"], data["eci"], data["flows"],
-    data["informality"], data["home_population"], True
+    data["informality"], data["home_population"], True,
+    "Rio de Janeiro"
 )
 
 optimized_params_gravity_pow, predicted_flows_gravity_pow = optimize_gravity_pow_model(

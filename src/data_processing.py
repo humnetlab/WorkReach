@@ -163,13 +163,11 @@ def preprocess_data(
     distance_log = ((distance - distance_min) / distance_diff)
 
 
-    eci = np.exp(eci)
     eci_min = np.min(eci)
     eci_max = np.max(eci)
     eci_diff = eci_max - eci_min
     eci = ((eci - eci_min) / eci_diff)
 
-    informality = np.exp(informality)
     informality_min = np.min(informality)
     informality_max = np.max(informality)
     informality_diff = informality_max - informality_min

@@ -328,16 +328,67 @@ def utility_model_log_likelihood(
     f = flows[mask];  p = pred[mask]
     return np.sum(p) - np.sum(f * np.log(p + 1e-10))
 
+# Starting points that reproduce the published fits, in the order
+# [beta_distance, beta_eci, beta_informality, threshold, k].
+WORKREACH_INIT_PARAMS = {
+    'Bay Area': [-21.29228073, 2.46192590, -14.73482897, 0.0, 128.76364471],
+    'Los Angeles': [-9.60082799, 0.48196874, -8.70242658, 0.0, 32.41348354],
+    'Mexico City': [-21.88061427, 4.22017890, 10.24993644, 0.32330327, 10.82358124],
+    'Rio de Janeiro': [-16.44711643, 6.60287825, 4.26654838, 0.37281601, 9.65403584],
+}
+
+DEFAULT_INIT_PARAMS = [0.0, 0.0, 0.0, 0.0, 1.0]
+
+def find_initial_params(
+    distance: np.ndarray,
+    eci: np.ndarray,
+    flows: np.ndarray,
+    informality: np.ndarray,
+    home_population: np.ndarray,
+    transition: bool = True,
+    n_samples: int = 10000,
+    seed: int = 0
+) -> np.ndarray:
+    """Search random starting points and return the one with the lowest negative log-likelihood."""
+    rng = np.random.default_rng(seed)
+    candidates = np.column_stack([
+        rng.uniform(-30.0, 30.0, n_samples),  # beta_distance
+        rng.uniform(-30.0, 30.0, n_samples),  # beta_eci
+        rng.uniform(-30.0, 30.0, n_samples),  # beta_informality
+        rng.uniform(0.0, 1.0, n_samples),     # threshold, on the scaled distance
+        rng.uniform(0.0, 150.0, n_samples),   # k
+    ])
+
+    best_params = candidates[0]
+    best_nll = np.inf
+    for params in candidates:
+        nll = utility_model_log_likelihood(
+            params, distance, eci, flows, informality, home_population, transition
+        )
+        if np.isfinite(nll) and nll < best_nll:
+            best_params = params
+            best_nll = nll
+
+    return best_params
+
 def optimize_utility_model(
     distance: np.ndarray,
     eci: np.ndarray,
     flows: np.ndarray,
     informality: np.ndarray,
     home_population: np.ndarray,
-    transition: bool = True
+    transition: bool = True,
+    city: Optional[str] = None,
+    optimized: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Optimize the utility-based model."""
-    initial = [0.0, 0.0, 0.0, 0.0, 1.0]
+    """Optimize the utility-based model. With optimized=False the stored starting point
+    for the city is used, with optimized=True it is searched for."""
+    if optimized:
+        initial = find_initial_params(
+            distance, eci, flows, informality, home_population, transition
+        )
+    else:
+        initial = WORKREACH_INIT_PARAMS.get(city, DEFAULT_INIT_PARAMS)
     bounds = [(None, None), (None, None), (None, None), (0, None), (0, None)]
     res = optimize.minimize(
         utility_model_log_likelihood,
