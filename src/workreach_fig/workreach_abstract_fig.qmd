@@ -96,6 +96,28 @@ fig3, ax3 = plot_utility_map(
 )
 ```
 
+## Commuting Flows Map
+
+Panel c of the graphical abstract. Only the individual panel is saved; the
+multi-panel layout is assembled outside this repository.
+
+```{python}
+import sys
+sys.path.append("..")
+
+from data_processing import load_and_prepare_data, prepare_flow_map_data
+from visualization import create_flow_map
+
+aligned_data, mzn, *_ = load_and_prepare_data(
+    "../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv", "Mexico City"
+)
+flow_map_data = prepare_flow_map_data(aligned_data, mzn)
+
+fig_c, ax_c = create_flow_map(flow_map_data, mzn, "Mexico City")
+fig_c.savefig("../../figs/cdmx_flows_workreach.png", dpi=300,
+              bbox_inches="tight", facecolor="white", edgecolor="none")
+```
+
 ## Summary Statistics
 
 ```{python}

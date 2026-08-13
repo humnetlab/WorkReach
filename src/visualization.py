@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from scipy.stats import pearsonr
 from typing import Dict, Tuple
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.collections import LineCollection
+from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from matplotlib_scalebar.scalebar import ScaleBar
 from typing import List, Tuple
 from data_processing import CITY_PROJECTIONS
@@ -16,9 +18,11 @@ def project_for_mapping(gdf, city_name: str):
     """Reproject to the city's metric CRS so distances on the map are in metres."""
     return gdf.to_crs(epsg=CITY_PROJECTIONS.get(city_name, 3857))
 
-# Rio's outline reaches the lower left, so its bar is dropped below the axes
-# to sit at the same height as the bars of the other cities.
-SCALE_BAR_OFFSETS = {"Rio de Janeiro": -0.14}
+ECI_LABEL = "$\\mathrm{ECI}^{\\mathrm{emp}}$"
+
+# Bars sit just below the axes so they never overlap a city outline. The gap is
+# expressed in axis widths so tall and wide panels get the same visual spacing.
+SCALE_BAR_GAP = 0.09
 
 def _round_length(metres: float) -> float:
     """Round a distance down to a 1, 2 or 5 times a power of ten."""
@@ -30,15 +34,11 @@ def _round_length(metres: float) -> float:
 
 def add_scale_bar(ax, city_name: str, font_size: int = 20) -> None:
     """Add a scale bar to a map drawn in a metric CRS, clear of the city's outline."""
-    offset = SCALE_BAR_OFFSETS.get(city_name)
-
-    if offset is None:
-        ax.add_artist(ScaleBar(1, "m", location='lower left', frameon=False,
-                               pad=0.5, font_properties={"size": font_size}))
-        return
-
-    # Drawn by hand below the axes, since the outline reaches the lower left
     x_min, x_max = ax.get_xlim()
+
+    # convert the gap from axis widths to axis heights
+    box = ax.get_window_extent()
+    offset = -SCALE_BAR_GAP * box.width / box.height
     length = _round_length((x_max - x_min) / 5)
     fraction = length / (x_max - x_min)
 
@@ -222,7 +222,7 @@ def plot_utility_parameters(utility_params_df):
     return fig
 
 
-def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize=(24, 12)):
+def create_accessibility_boxplots(combined_accessibility_df, city_order, z_df=None, figsize=(24, 18)):
     """Create boxplots showing accessibility metrics across cities with sophisticated styling."""
 
     sns.set_theme(context="talk", style="whitegrid")
@@ -255,7 +255,7 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
         ax.set_facecolor("#F8F9FA")
 
     fig, axes = plt.subplots(
-        2, 4,
+        3, 4,
         figsize=figsize,
         sharex=True,
         sharey='row',
@@ -284,6 +284,15 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
                     city="",
                     ylabel=True if col == 0 else False)
 
+            if z_df is not None and 'z_mean' in z_df.columns:
+                add_box(
+                    axes[2, col],
+                    subset.merge(z_df[["geomid", "City", "z_mean"]],
+                                 on=["geomid", "City"], how="inner"),
+                    ycol="z_mean",
+                    city="",
+                    ylabel=True if col == 0 else False)
+
         except Exception as e:
             print(f"Error plotting accessibility for {city}: {e}")
             axes[0, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
@@ -291,10 +300,13 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, figsize
             axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[1, col].transAxes)
 
-    fig.text(0.1, 0.97, "a)                         Distance-Weighted Accessibility",
-             fontsize=32, fontweight="bold", va="top")
-    fig.text(0.1, 0.49, "b)                         Consumer-Surplus Accessibility",
-             fontsize=32, fontweight="bold", va="top")
+    for row, label in enumerate(["a)   Distance-weighted accessibility",
+                                 "b)   Consumer surplus accessibility",
+                                 "c)   Mean z-score accessibility"]):
+        pos = axes[row, 0].get_position()
+        gap = 0.05 if row == 0 else 0.02   # clear the city titles on the first row
+        fig.text(0.1, pos.y0 + pos.height + gap, label,
+                 fontsize=32, fontweight="bold", va="bottom")
 
     plt.tight_layout(rect=[0, 0, 1, 0.92])
 
@@ -338,8 +350,8 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
         cb = plt.colorbar(sm, cax=cax)
         cb.ax.tick_params(labelsize=32)
         cb.outline.set_linewidth(0)
-        cb.set_label(value_col.upper() if value_col.lower() == "eci"
-                     else value_col.replace('_', ' ').title(), fontsize=36)
+        cb.set_label(ECI_LABEL if value_col.lower() == "eci"
+                     else value_col.replace('_', ' ').capitalize(), fontsize=36)
         cb.solids.set_edgecolor("none")
         cb.solids.set_linewidth(0)
         cb.solids.set_rasterized(True)
@@ -403,14 +415,61 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
     for c, city in enumerate(city_order):
         fig.text(0.17 + c * 0.219, 0.97, city, fontsize=50, fontweight="bold", ha="center", va="top")
 
-    for r, (row_label, metric_name) in enumerate([("a)", "ECI"), ("b)", "Informality rate")]):
+    for r, (row_label, metric_name) in enumerate([("a)", ECI_LABEL), ("b)", "Informality rate")]):
         ax_pos = axes[r, 0].get_position()
         row_top_y = ax_pos.y0 + ax_pos.height + 0.02
-        fig.text(0.04, row_top_y, f"{row_label}  {metric_name}",
+        fig.text(0.07, row_top_y, f"{row_label}  {metric_name}",
                  fontsize=44, fontweight='bold', va='bottom')
 
     return fig
 
+
+def create_flow_map(
+    flow_map_data: pd.DataFrame,
+    gdf,
+    city_name: str,
+    cmap: str = "coolwarm",
+    figsize: Tuple[int, int] = (12, 12),
+    linewidth_scale: float = 2.5
+):
+    """Draw commuting flows as lines between home and work centroids."""
+    sns.set_theme(context="talk", style="white")
+
+    gdf = project_for_mapping(gdf, city_name)
+    fig, ax = plt.subplots(figsize=figsize)
+
+    gdf.plot(ax=ax, color="#F2F2F2", edgecolor="white", linewidth=0.2, rasterized=True)
+
+    home = gpd.GeoSeries(gpd.points_from_xy(flow_map_data["home_lon"], flow_map_data["home_lat"]),
+                         crs="EPSG:4326").to_crs(gdf.crs)
+    work = gpd.GeoSeries(gpd.points_from_xy(flow_map_data["work_lon"], flow_map_data["work_lat"]),
+                         crs="EPSG:4326").to_crs(gdf.crs)
+
+    flows = flow_map_data["flows"].to_numpy(dtype=float)
+    order = np.argsort(flows)
+    segments = np.stack([np.column_stack([home.x, home.y]),
+                         np.column_stack([work.x, work.y])], axis=1)[order]
+    weights = flows[order]
+
+    norm = LogNorm(vmin=max(weights.min(), 1), vmax=weights.max())
+    lines = LineCollection(segments, cmap=cmap, norm=norm,
+                           linewidths=linewidth_scale * norm(weights),
+                           alpha=0.35, rasterized=True)
+    lines.set_array(weights)
+    ax.add_collection(lines)
+
+    cax = inset_axes(ax, width="45%", height="3.5%", loc="lower center",
+                     bbox_to_anchor=(0., 0.06, 1, 1), bbox_transform=ax.transAxes,
+                     borderpad=0)
+    cb = plt.colorbar(lines, cax=cax, orientation="horizontal")
+    cb.set_label("Commuters", fontsize=26)
+    cb.ax.tick_params(labelsize=22)
+    cb.outline.set_linewidth(0)
+
+    ax.set_axis_off()
+    add_scale_bar(ax, city_name, font_size=22)
+
+    return fig, ax
 
 def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18)):
     """Create spatial maps showing accessibility metrics across cities."""

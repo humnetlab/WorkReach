@@ -463,37 +463,11 @@ display(summary_tbl)
 
 ## Accessibility Analysis
 
-```{python}
-combined_accessibility_df, all_accessibility_dfs = process_accessibility_data(all_city_data, all_models)
-
-city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
-accessibility_fig = create_accessibility_boxplots(combined_accessibility_df, city_order)
-# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
-#                           facecolor='white', edgecolor='none')
-# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.png', dpi=300,
-#                           facecolor='white', edgecolor='none')
-plt.show()
-```
-
-## Variable Maps with Histograms
-
-```{python}
-city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
-maps_fig = create_maps_with_histograms(all_city_data, city_order)
-# maps_fig.savefig('../figs/maps_hist.pdf', dpi=300,
-#                  facecolor='white', edgecolor='none')
-# maps_fig.savefig('../figs/maps_hist.png', dpi=300, bbox_inches='tight',
-#                  facecolor='white', edgecolor='none')
-plt.show()
-```
-
-## Accessibility Maps
-
 Use z-score to compare the two accessibility types
 
 ```{python}
 z_df = (
-    combined_accessibility_df
+    combined_accessibility_df.query("Model == 'Utility'")
     .assign(
         z_dist=lambda d: d.groupby('City')['distance_weighted_accessibility']
                           .transform(stats.zscore, nan_policy='omit'),
@@ -520,6 +494,32 @@ z_df = z_df.groupby("City").apply(city_pca).drop(columns="City").reset_index()
 z_df["diff"] = z_df["PC1"].transform(winsorise)
 z_df["z_mean"] = ((z_df["z_dist"] + z_df["z_surp"]) / 2).transform(winsorise)
 ```
+
+```{python}
+combined_accessibility_df, all_accessibility_dfs = process_accessibility_data(all_city_data, all_models)
+
+city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+accessibility_fig = create_accessibility_boxplots(combined_accessibility_df, city_order, z_df)
+# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.pdf', dpi=300,
+#                           facecolor='white', edgecolor='none')
+# accessibility_fig.savefig('../figs/accessibility_boxplots_sharey.png', dpi=300,
+#                           facecolor='white', edgecolor='none')
+plt.show()
+```
+
+## Variable Maps with Histograms
+
+```{python}
+city_order = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+maps_fig = create_maps_with_histograms(all_city_data, city_order)
+# maps_fig.savefig('../figs/maps_hist.pdf', dpi=300,
+#                  facecolor='white', edgecolor='none')
+# maps_fig.savefig('../figs/maps_hist.png', dpi=300, bbox_inches='tight',
+#                  facecolor='white', edgecolor='none')
+plt.show()
+```
+
+## Accessibility Maps
 
 ```{python}
 maps_fig = create_accessibility_maps(
