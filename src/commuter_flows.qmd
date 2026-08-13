@@ -324,7 +324,7 @@ for i, city in enumerate(cities_list):
         ax.plot([0, max_val], [0, max_val], 'r--', alpha=0.88)
 
         ax.text(0.05, 0.95, f"$\\rho$ = {corr:.2f}\nCPC = {cpc:.2f}",
-            transform=ax.transAxes, fontsize=20,
+            transform=ax.transAxes, fontsize=16,
             verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
 
@@ -334,21 +334,22 @@ for i, city in enumerate(cities_list):
             model_display = model.replace("_", " ")
 
         if i == 0:
-            ax.set_title(model_display)
+            ax.set_title(model_display, fontsize=22)
 
         if j == 0:
-            ax.set_ylabel(f"{city}\nPredicted Flows")
-            ax.text(-0.42, 1.02, f"{chr(97 + i)})", transform=ax.transAxes,
-                    fontsize=26, fontweight="bold", va="bottom", ha="left")
+            ax.set_ylabel(f"{city}\nPredicted Flows", fontsize=20)
+            ax.text(-0.42, 1.06, f"{chr(97 + i)})", transform=ax.transAxes,
+                    fontsize=28, fontweight="bold", va="bottom", ha="left")
 
         if i == len(cities_list) - 1:
-            ax.set_xlabel("Observed Flows")
+            ax.set_xlabel("Observed Flows", fontsize=20)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
 
         ax.set_xlim(1, max_val*1.1)
         ax.set_ylim(1, max_val*1.1)
+        ax.tick_params(axis='both', labelsize=18)
 
 # fig.savefig("../figs/model_performance.pdf", dpi=300, bbox_inches="tight")
 # fig.savefig("../figs/model_performance.png", dpi=300, bbox_inches="tight")
@@ -517,6 +518,7 @@ z_df = z_df.dropna()
 
 z_df = z_df.groupby("City").apply(city_pca).drop(columns="City").reset_index()
 z_df["diff"] = z_df["PC1"].transform(winsorise)
+z_df["z_mean"] = ((z_df["z_dist"] + z_df["z_surp"]) / 2).transform(winsorise)
 ```
 
 ```{python}

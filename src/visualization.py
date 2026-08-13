@@ -16,15 +16,19 @@ def project_for_mapping(gdf, city_name: str):
     """Reproject to the city's metric CRS so distances on the map are in metres."""
     return gdf.to_crs(epsg=CITY_PROJECTIONS.get(city_name, 3857))
 
-def add_scale_bar(ax, location: str = 'lower right', font_size: int = 20) -> None:
-    """Add a scale bar to a map drawn in a metric CRS."""
-    ax.add_artist(ScaleBar(
-        1, "m",
-        location=location,
-        box_alpha=0.6,
-        pad=0.4,
-        font_properties={"size": font_size}
-    ))
+# Cities whose outline reaches the corner where the bar would normally sit.
+SCALE_BAR_ANCHORS = {"Rio de Janeiro": (0.0, -0.06)}
+
+def add_scale_bar(ax, city_name: str, font_size: int = 20) -> None:
+    """Add a scale bar to a map drawn in a metric CRS, clear of the city's outline."""
+    kwargs = dict(location='lower left', box_alpha=0.6, pad=0.4,
+                  font_properties={"size": font_size})
+
+    anchor = SCALE_BAR_ANCHORS.get(city_name)
+    if anchor:
+        kwargs.update(bbox_to_anchor=anchor, bbox_transform=ax.transAxes)
+
+    ax.add_artist(ScaleBar(1, "m", **kwargs))
 
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
@@ -306,7 +310,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             missing_kwds=dict(color="lightgrey", label="NA")
         )
         ax.set_axis_off()
-        add_scale_bar(ax)
+        add_scale_bar(ax, city_name)
 
         cax = inset_axes(ax, width="5%", height="70%", loc='center left',
                          bbox_to_anchor=(1.02, 0., 1, 1),
@@ -416,7 +420,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
                  missing_kwds=dict(color="lightgrey", label="NA"))
         ax.collections[0].set_rasterized(True)
         ax.set_axis_off()
-        add_scale_bar(ax)
+        add_scale_bar(ax, city_name)
 
         if colorbar:
             cax = inset_axes(
@@ -442,7 +446,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
     ROW_INFO = [
         ("z_dist", "crest_r", False, "a)  Distance‑weighted Accessibility"),
         ("z_surp", "viridis", False, "b)  Consumer Surplus Accessibility"),
-        ("diff",   "flare_r", False,  "c)  PCA 1st Dim. Accessibility")
+        ("z_mean", "flare_r", False,  "c)  Mean z-score Accessibility")
     ]
 
     fig, axes = plt.subplots(3, 4, figsize=figsize,
