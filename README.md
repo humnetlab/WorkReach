@@ -85,13 +85,6 @@ underlying licensed data cannot be redistributed and must be obtained from the
 respective providers.
 
 
-## Authors
-
-- **Ollin D. Langle-Chimal** - University of California, Berkeley (ollin18)
-- **Steffen Knoblauch** - Heidelberg University
-- **Marta C. González** - University of California, Berkeley
-
-
 ## Contact
 
 For questions about the methodology or code, please contact the corresponding authors or open an issue in this repository.
