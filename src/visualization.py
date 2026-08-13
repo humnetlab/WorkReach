@@ -9,7 +9,6 @@ import seaborn as sns
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
-from matplotlib_scalebar.scalebar import ScaleBar
 from typing import List, Tuple
 from data_processing import CITY_PROJECTIONS
 
@@ -20,8 +19,6 @@ def project_for_mapping(gdf, city_name: str):
 
 ECI_LABEL = "$\\mathrm{ECI}^{\\mathrm{emp}}$"
 
-# Bars sit just below the axes so they never overlap a city outline. The gap is
-# expressed in axis widths so tall and wide panels get the same visual spacing.
 SCALE_BAR_GAP = 0.09
 
 def _round_length(metres: float) -> float:
@@ -32,13 +29,20 @@ def _round_length(metres: float) -> float:
             return step * exponent
     return exponent
 
-def add_scale_bar(ax, city_name: str, font_size: int = 20) -> None:
-    """Add a scale bar to a map drawn in a metric CRS, clear of the city's outline."""
+def add_scale_bar(ax, city_name: str, font_size: int = 20, below: bool = True,
+                  offset: float = None) -> None:
+    """Add a scale bar to a map drawn in a metric CRS. With below=False the bar sits
+    inside the axes, for panels that already carry something underneath. The offset
+    overrides its height, in axis fractions, for panels whose corners are occupied."""
     x_min, x_max = ax.get_xlim()
 
-    # convert the gap from axis widths to axis heights
-    box = ax.get_window_extent()
-    offset = -SCALE_BAR_GAP * box.width / box.height
+    if offset is None:
+        if below:
+            box = ax.get_window_extent()
+            offset = -SCALE_BAR_GAP * box.width / box.height
+        else:
+            offset = 0.04
+
     length = _round_length((x_max - x_min) / 5)
     fraction = length / (x_max - x_min)
 
@@ -340,7 +344,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
             missing_kwds=dict(color="lightgrey", label="NA")
         )
         ax.set_axis_off()
-        add_scale_bar(ax, city_name)
+        add_scale_bar(ax, city_name, font_size=32, below=False)
 
         cax = inset_axes(ax, width="5%", height="70%", loc='center left',
                          bbox_to_anchor=(1.02, 0., 1, 1),

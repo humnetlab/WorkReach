@@ -328,8 +328,6 @@ def utility_model_log_likelihood(
     f = flows[mask];  p = pred[mask]
     return np.sum(p) - np.sum(f * np.log(p + 1e-10))
 
-# Starting points that reproduce the published fits, in the order
-# [beta_distance, beta_eci, beta_informality, threshold, k].
 WORKREACH_INIT_PARAMS = {
     'Bay Area': [-21.29228073, 2.46192590, -14.73482897, 0.0, 128.76364471],
     'Los Angeles': [-9.60082799, 0.48196874, -8.70242658, 0.0, 32.41348354],

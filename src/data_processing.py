@@ -4,7 +4,6 @@ import geopandas as gpd
 from typing import Tuple
 from haversine import haversine, Unit
 
-# Projected CRS by city, used for areas, distances and map scale bars.
 CITY_PROJECTIONS = {
     "Rio de Janeiro": 31983,
     "Bay Area": 26910,
