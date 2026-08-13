@@ -304,15 +304,16 @@ def create_accessibility_boxplots(combined_accessibility_df, city_order, z_df=No
             axes[1, col].text(0.5, 0.5, f'Error: {str(e)[:20]}...',
                              ha='center', va='center', transform=axes[1, col].transAxes)
 
+    plt.tight_layout(rect=[0, 0, 1, 0.92])
+    fig.canvas.draw()
+
     for row, label in enumerate(["a)   Distance-weighted accessibility",
                                  "b)   Consumer surplus accessibility",
                                  "c)   Mean z-score accessibility"]):
         pos = axes[row, 0].get_position()
-        gap = 0.05 if row == 0 else 0.02   # clear the city titles on the first row
+        gap = 0.055 if row == 0 else 0.022
         fig.text(0.1, pos.y0 + pos.height + gap, label,
                  fontsize=32, fontweight="bold", va="bottom")
-
-    plt.tight_layout(rect=[0, 0, 1, 0.92])
 
     return fig
 
@@ -326,7 +327,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
         'legend.fontsize': 40, 'figure.figsize': figsize
     })
 
-    CITY_COLORS = dict(zip(city_order, sns.color_palette("tab10", 4)))
+    CITY_COLORS = dict(zip(city_order, ["#0072B2", "#E69F00", "#009E73", "#D55E00"]))
 
     def tidy_ticks(ax, x_vals, y_vals, fs=22):
         ax.set_xticks([round(np.nanmin(x_vals), 2), round(np.nanmax(x_vals), 2)])

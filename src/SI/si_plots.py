@@ -339,8 +339,8 @@ def plot_accessibility_scatters(combined_accessibility_df, city_order):
     return fig
 
 
-CITY_COLORS = {"Bay Area": "#2166ac", "Los Angeles": "#d6604d",
-               "Mexico City": "#b35806", "Rio de Janeiro": "#4dac26"}
+CITY_COLORS = {"Bay Area": "#0072B2", "Los Angeles": "#E69F00",
+               "Mexico City": "#009E73", "Rio de Janeiro": "#D55E00"}
 
 def _format_p(p):
     return "< 0.001" if p < 0.001 else f"= {p:.3f}"
@@ -391,7 +391,8 @@ def _row_letter(ax, index, x=-0.30, y=1.02):
 
 def plot_error_correlation_heatmaps(corr_tables, city_order):
     """Pairwise correlation between the residuals of every pair of models."""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 11))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12),
+                             gridspec_kw={"wspace": 0.55, "hspace": 0.45})
 
     for i, city in enumerate(city_order):
         ax = axes[i // 2, i % 2]
@@ -400,14 +401,15 @@ def plot_error_correlation_heatmaps(corr_tables, city_order):
 
         sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r",
                     vmin=0.5, vmax=1.0, square=True, mask=mask, cbar=False,
-                    linewidths=0.5, ax=ax, annot_kws={"size": 16})
+                    linewidths=0.5, ax=ax, annot_kws={"size": 15})
         ax.set_title(city, fontsize=22, fontweight="bold")
-        ax.tick_params(axis="both", labelsize=16)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=35, ha="right", fontsize=14)
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=14)
         _row_letter(ax, i, x=-0.22, y=1.06)
 
-    plt.tight_layout(rect=[0, 0, 0.86, 1])
+    fig.subplots_adjust(right=0.86)
 
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    cbar_ax = fig.add_axes([0.90, 0.15, 0.03, 0.7])
     mappable = plt.cm.ScalarMappable(cmap="RdBu_r",
                                      norm=plt.Normalize(vmin=0.5, vmax=1.0))
     mappable.set_array([])
@@ -472,6 +474,15 @@ def plot_oos_scatter(oos_predictions, city_flows, city_order, model_order):
     fig, axes = plt.subplots(len(city_order), len(model_order),
                              figsize=(16, 16), sharex=True, sharey=True)
 
+    largest = 0.0
+    for city in city_order:
+        observed = city_flows[city].flatten()
+        for model in model_order:
+            predicted = np.round(oos_predictions[city][model]).flatten()
+            keep = ~np.isnan(observed) & ~np.isnan(predicted)
+            largest = max(largest, float(np.max(observed[keep])),
+                          float(np.max(predicted[keep])))
+
     for i, city in enumerate(city_order):
         observed = city_flows[city].flatten()
 
@@ -488,8 +499,7 @@ def plot_oos_scatter(oos_predictions, city_flows, city_order, model_order):
             ax.scatter(obs_plot, pred_plot, s=10, alpha=0.01,
                        color=MODEL_COLORS.get(model, "blue"), rasterized=True)
 
-            max_val = max(np.max(obs_plot), np.max(pred_plot))
-            ax.plot([0, max_val], [0, max_val], "r--", alpha=0.88)
+            ax.plot([0, largest], [0, largest], "r--", alpha=0.88)
 
             ax.text(0.05, 0.95, f"$r$ = {r:.2f}\nCPC = {cpc:.2f}",
                     transform=ax.transAxes, fontsize=16, verticalalignment="top",
@@ -505,8 +515,8 @@ def plot_oos_scatter(oos_predictions, city_flows, city_order, model_order):
 
             ax.set_xscale("log")
             ax.set_yscale("log")
-            ax.set_xlim(1, max_val * 1.1)
-            ax.set_ylim(1, max_val * 1.1)
+            ax.set_xlim(1, largest * 1.1)
+            ax.set_ylim(1, largest * 1.1)
             ax.tick_params(axis="both", labelsize=18)
 
     plt.tight_layout()
@@ -544,10 +554,10 @@ def plot_train_test_performance(results_df, city_order, model_names):
             ax.tick_params(axis="y", labelsize=18)
             if col == 0:
                 ax.set_ylabel(metric, fontsize=20)
+            ax.text(-0.12, 1.04, f"{chr(97 + row * 4 + col)})", transform=ax.transAxes,
+                    fontsize=26, fontweight="bold", va="bottom", ha="left")
             if row == 0:
-                ax.set_title(city, fontsize=22, fontweight="bold")
-                ax.text(-0.10, 1.16, f"{chr(97 + col)})", transform=ax.transAxes,
-                        fontsize=28, fontweight="bold", va="bottom", ha="left")
+                ax.set_title(city, fontsize=22, fontweight="bold", pad=26)
             if row == 0 and col == 0:
                 ax.legend(fontsize=18, loc="upper left")
 
@@ -818,8 +828,8 @@ def plot_eci_income_scatter(zone_frames, income_data, city_order):
         ax.set_ylabel(label, fontsize=22)
         ax.set_title(city, fontsize=22, fontweight="bold")
         ax.tick_params(labelsize=20)
-        ax.text(-0.30, 1.10, f"{chr(97 + i)})", transform=ax.transAxes,
-                fontsize=26, fontweight="bold", va="bottom", ha="left")
+        ax.text(0.0, 1.14, f"{chr(97 + i)})", transform=ax.transAxes,
+                fontsize=26, fontweight="bold", va="bottom", ha="right")
 
         side = "right" if r < 0 else "left"
         ax.text(0.97 if r < 0 else 0.03, 0.97, f"$r$ = {r:.2f} ($p$ {_format_p(p)})",
@@ -834,8 +844,8 @@ def plot_eci_income_scatter(zone_frames, income_data, city_order):
 SECTOR_MARKERS = {"Bay Area": "o", "Los Angeles": "s",
                   "Mexico City": "^", "Rio de Janeiro": "D"}
 
-SECTOR_COLORS = {"Bay Area": "#2166ac", "Los Angeles": "#4393c3",
-                 "Mexico City": "#d6604d", "Rio de Janeiro": "#b2182b"}
+SECTOR_COLORS = {"Bay Area": "#0072B2", "Los Angeles": "#E69F00",
+                 "Mexico City": "#009E73", "Rio de Janeiro": "#D55E00"}
 
 
 def plot_sector_crosscity(profiles, city_order):
