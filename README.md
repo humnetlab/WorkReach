@@ -77,7 +77,7 @@ included in this repository.
 | `income_proxy_*.csv` | Mean and median wage per destination zone, with worker counts |
 
 Sources by city. Employment and commuting data for the Bay Area and Los Angeles are
-derived from **Replica**; the tables here are aggregates and carry no raw Replica data
+derived from Replica; the tables here are aggregates and carry no raw Replica data
 or data extracts. Mexico City uses DENUE and the 2020 population census from INEGI,
 with mobility from location-based services licensed from Quadrant. Rio de Janeiro uses
 RAIS and the 2010 demographic census from IBGE, with the same mobility source. The
