@@ -1,0 +1,84 @@
+---
+title: "Sectoral Relatedness"
+format: html
+jupyter: python3
+---
+
+How the employment mix at the origin of a commute relates, through the product
+space, to the mix at its destination.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+sys.path.append(".")
+
+import os
+import pandas as pd
+
+from data_processing import load_and_prepare_data
+from complexity import load_employment, compute_binary_rca, compute_proximity
+
+SKIP_SECTORS = {"Other", "NA", "Agriculture"}
+from relatedness import (
+    employment_shares,
+    dominant_sector,
+    relatedness_for_flows,
+    sector_profiles,
+)
+from si_plots import plot_sector_crosscity
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+CITY_PATHS = {
+    "Bay Area": ("../../data/h3_bay_8.geojson", "../../data/bay_flows_h3_8.csv",
+                 "../../data/workers_bay.csv"),
+    "Los Angeles": ("../../data/h3_la_8.geojson", "../../data/la_flows_h3_8.csv",
+                    "../../data/workers_la.csv"),
+    "Mexico City": ("../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv",
+                    "../../data/workers_cdmx.csv"),
+    "Rio de Janeiro": ("../../data/map_informality_eci.geojson",
+                       "../../data/rio_flows_h3_8h3.csv",
+                       "../../data/workers_rio.csv"),
+}
+```
+
+## Relatedness of Every Observed Commute
+
+```{python}
+profiles = {}
+
+for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
+    flows, *_ = load_and_prepare_data(zone_path, flow_path, city)
+    flows["home_geomid"] = flows["home_geomid"].astype(str)
+    flows["work_geomid"] = flows["work_geomid"].astype(str)
+
+    employment = load_employment(employment_path)
+    employment = employment[~employment["naics"].isin(SKIP_SECTORS)]
+    shares = employment_shares(employment)
+    proximity = compute_proximity(compute_binary_rca(employment))
+
+    flows["sr"], flows["cosine"] = relatedness_for_flows(flows, shares, proximity)
+    profiles[city] = sector_profiles(flows, dominant_sector(shares))
+
+    covered = flows["sr"].notna().mean() * 100
+    print(f"{city:16s} {len(flows):7,} pairs, {covered:5.1f}% with relatedness, "
+          f"{len(profiles[city]):2d} sectors")
+```
+
+## Within-Sector Commuting across Cities
+
+```{python}
+fig = plot_sector_crosscity(profiles, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/comment3_sector_crosscity.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```

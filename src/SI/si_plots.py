@@ -3,6 +3,7 @@ import sys
 sys.path.append("..")
 
 import numpy as np
+import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -827,4 +828,56 @@ def plot_eci_income_scatter(zone_frames, income_data, city_order):
 
     fig.suptitle(ECI_LABEL + " against the income or wealth proxy", fontsize=24, y=1.01)
     fig.tight_layout()
+    return fig
+
+
+SECTOR_MARKERS = {"Bay Area": "o", "Los Angeles": "s",
+                  "Mexico City": "^", "Rio de Janeiro": "D"}
+
+SECTOR_COLORS = {"Bay Area": "#2166ac", "Los Angeles": "#4393c3",
+                 "Mexico City": "#d6604d", "Rio de Janeiro": "#b2182b"}
+
+
+def plot_sector_crosscity(profiles, city_order):
+    """Share of each sector's outflows that stay within the same sector."""
+    combined = pd.concat([frame.assign(city=city) for city, frame in profiles.items()])
+    order = combined.groupby("sector")["within_pct"].mean().sort_values().index.tolist()
+    position = {sector: i for i, sector in enumerate(order)}
+
+    fig, ax = plt.subplots(figsize=(12, max(7, len(order) * 0.7 + 3)))
+
+    for i in range(len(order)):
+        ax.axhspan(i - 0.5, i + 0.5, color="#f4f4f4" if i % 2 == 0 else "white", zorder=0)
+
+    largest = np.log1p(combined["total_flows"].max())
+    for city in city_order:
+        subset = combined[combined["city"] == city].copy()
+        subset = subset[subset["sector"].isin(position)]
+        subset["y"] = subset["sector"].map(position)
+        ax.scatter(subset["within_pct"], subset["y"],
+                   s=np.log1p(subset["total_flows"]) / largest * 280 + 35,
+                   color=SECTOR_COLORS[city], marker=SECTOR_MARKERS[city],
+                   alpha=0.82, edgecolors="white", linewidths=0.4,
+                   zorder=3, label=city)
+
+    for sector, mean_value in combined.groupby("sector")["within_pct"].mean().items():
+        if sector in position:
+            y = position[sector]
+            ax.plot([mean_value, mean_value], [y - 0.35, y + 0.35],
+                    color="#222222", lw=2.0, solid_capstyle="round", zorder=4)
+    ax.plot([], [], color="#222222", lw=2.5, label="Cross-city mean")
+
+    ax.set_yticks(range(len(order)))
+    ax.set_yticklabels(order, fontsize=16)
+    ax.set_xlabel("Within dominant sector (%)", fontsize=18)
+    ax.set_xlim(left=-1)
+    ax.grid(axis="x", alpha=0.3, linestyle="--")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(axis="both", which="major", labelsize=16)
+
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, title="City", loc="lower center",
+               bbox_to_anchor=(0.5, -0.08), ncol=5, fontsize=15,
+               frameon=True, framealpha=0.9, title_fontsize=15)
+    plt.tight_layout()
     return fig
