@@ -45,5 +45,7 @@ pip-wheel-metadata/
 *.egg
 
 
-# Supplementary figures are built locally, not shipped
+# Figures are shipped as PNG; the PDF versions are built locally
 figs/SI/
+figs/*.pdf
+figs/**/*.pdf
