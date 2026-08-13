@@ -1,5 +1,7 @@
 # The WorkReach model for urban work location choices through economic complexity and informality
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21924441.svg)](https://doi.org/10.5281/zenodo.21924441)
+
 ## Abstract
 
 Human mobility in urban areas largely depends on the spatial distribution of jobs and who pursues them, yet how workers balance proximity against economic opportunity remains poorly understood. Existing mechanistic models capture physically interpretable effects such as distance decay, but overlook how socioeconomic factors shape commuting decisions. We present WorkReach, a model grounded in discrete choice theory that embeds informality and economic complexity into a utility function and represents commuting as the outcome of workers behaving as if maximizing it. Applied to four cities in the United States, Mexico, and Brazil, it reproduces commuting flows as accurately as widely used benchmarks while making the underlying choices interpretable. Here, we show that workers consistently commute farther to economically sophisticated areas, while the role of informality differs across regions, and that measuring accessibility by the perceived benefit of opportunities, not just physical proximity, exposes disparities conventional metrics overlook.
@@ -85,6 +87,10 @@ underlying licensed data cannot be redistributed and must be obtained from the
 respective providers.
 
 
+## Citation
+
+The code in this repository is archived at [10.5281/zenodo.21924441](https://doi.org/10.5281/zenodo.21924441). The stay-detection pipeline used to infer home and work locations from raw traces is archived at [10.5281/zenodo.21924437](https://doi.org/10.5281/zenodo.21924437).
+
 ## Contact
 
-For questions about the methodology or code, please contact the corresponding authors or open an issue in this repository.
+For questions about the methodology or code, please open an issue in this repository.
