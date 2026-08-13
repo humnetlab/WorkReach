@@ -16,19 +16,18 @@ def project_for_mapping(gdf, city_name: str):
     """Reproject to the city's metric CRS so distances on the map are in metres."""
     return gdf.to_crs(epsg=CITY_PROJECTIONS.get(city_name, 3857))
 
-# Cities whose outline reaches the corner where the bar would normally sit.
-SCALE_BAR_ANCHORS = {"Rio de Janeiro": (0.0, -0.06)}
+# Rio's outline reaches the lower left, so its bar goes to the opposite corner.
+SCALE_BAR_LOCATIONS = {"Rio de Janeiro": "upper left"}
 
 def add_scale_bar(ax, city_name: str, font_size: int = 20) -> None:
     """Add a scale bar to a map drawn in a metric CRS, clear of the city's outline."""
-    kwargs = dict(location='lower left', box_alpha=0.6, pad=0.4,
-                  font_properties={"size": font_size})
-
-    anchor = SCALE_BAR_ANCHORS.get(city_name)
-    if anchor:
-        kwargs.update(bbox_to_anchor=anchor, bbox_transform=ax.transAxes)
-
-    ax.add_artist(ScaleBar(1, "m", **kwargs))
+    ax.add_artist(ScaleBar(
+        1, "m",
+        location=SCALE_BAR_LOCATIONS.get(city_name, "lower left"),
+        box_alpha=0.7,
+        pad=0.5,
+        font_properties={"size": font_size}
+    ))
 
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
@@ -437,7 +436,7 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
             cb = plt.colorbar(sm, cax=cax)
             cb.ax.tick_params(labelsize=20)
             cb.outline.set_linewidth(0)
-            cb.set_label("Accessibility (z-score)", fontsize=22)
+            cax.set_title("z-score", fontsize=20, pad=8)
 
             cb.solids.set_edgecolor("none")
             cb.solids.set_linewidth(0)
