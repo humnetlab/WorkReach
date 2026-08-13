@@ -84,21 +84,3 @@ fig = plot_sector_crosscity(profiles, CITY_ORDER)
 fig.savefig(f"{FIGS_DIR}/comment3_sector_crosscity.pdf", dpi=300,
             facecolor="white", edgecolor="none", bbox_inches="tight")
 ```
-
-## Relatedness against Commuting Distance
-
-```{python}
-from relatedness import origin_decile_table
-from si_plots import plot_sr_informality
-
-decile_tables, decile_distances = {}, {}
-
-for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
-    flows = city_flows[city]
-    decile_tables[city], decile_distances[city] = origin_decile_table(flows)
-    print(f"{city:16s} {len(decile_tables[city]):6,} origin-decile cells")
-
-fig = plot_sr_informality(decile_tables, decile_distances, CITY_ORDER)
-fig.savefig(f"{FIGS_DIR}/comment3_sr_inf_scatter.pdf", dpi=300,
-            facecolor="white", edgecolor="none", bbox_inches="tight")
-```

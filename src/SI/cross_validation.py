@@ -139,5 +139,5 @@ def stratified_splits(prep, n_splits=5, n_bins=4, seed=42):
 
 
 def cpc(observed, predicted):
-    """Common part of commuters, on rounded predictions as in the main text."""
+    """Common part of commuters, computed on rounded predictions."""
     return common_part_of_commuters(observed, np.round(predicted))
