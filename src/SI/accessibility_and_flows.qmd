@@ -1,0 +1,185 @@
+---
+title: "Flow Maps and Accessibility"
+format: html
+jupyter: python3
+---
+
+Observed and predicted flow maps for every city and model, and the relationship
+between each accessibility measure and the informality rate of the home zone.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+sys.path.append(".")
+
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from pathlib import Path
+from scipy import stats
+
+from data_processing import load_and_prepare_data, preprocess_data
+from models import (
+    optimize_utility_model,
+    optimize_gravity_pow_model,
+    optimize_radiation_extended,
+    optimize_bms_plausible_model,
+)
+from accessibility import process_accessibility_data, winsorise
+from si_plots import (
+    plot_flow_map,
+    assemble_unified_figure,
+    plot_accessibility_vs_informality,
+)
+from visualization import project_for_mapping
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = Path("../../figs/SI")
+FIGS_DIR.mkdir(parents=True, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+CITY_PATHS = {
+    "Bay Area": ("../../data/h3_bay_8.geojson", "../../data/bay_flows_h3_8.csv"),
+    "Los Angeles": ("../../data/h3_la_8.geojson", "../../data/la_flows_h3_8.csv"),
+    "Mexico City": ("../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv"),
+    "Rio de Janeiro": ("../../data/map_informality_eci.geojson", "../../data/rio_flows_h3_8h3.csv"),
+}
+
+ROW_INFO = [
+    ("z_dist", "a)  Distance-weighted accessibility"),
+    ("z_surp", "b)  Consumer-surplus accessibility"),
+    ("z_mean", "c)  Combined accessibility"),
+]
+```
+
+## Load Data and Fit Every Model
+
+```{python}
+all_city_data = {}
+all_models = {}
+zone_data = {}
+
+for city, (mzn_path, flows_path) in CITY_PATHS.items():
+    aligned, mzn, dist_m, eci_m, flows_m, home_m, inf_m, _ = load_and_prepare_data(
+        mzn_path, flows_path, city
+    )
+    median_informality = mzn["informality_rate"].median()
+    aligned["informality_level"] = np.where(
+        aligned["informality_rate"] < median_informality, "Low", "High"
+    )
+    zone_data[city] = mzn
+
+    (distance, distance_log, eci, flows, informality, home_population,
+     work_population, distance_min, distance_diff, *_) = preprocess_data(
+        home_m, dist_m, eci_m, flows_m, inf_m
+    )
+    zones = list(flows_m.index)
+
+    all_city_data[city] = {
+        "aligned_data": aligned, "mzn": mzn, "distance_matrix": dist_m,
+        "distance": distance, "distance_log": distance_log, "eci": eci,
+        "flows": flows, "informality": informality,
+        "home_population": home_population, "work_population": work_population,
+        "distance_min": distance_min, "distance_diff": distance_diff,
+        "zones": zones,
+    }
+
+    params, predictions = optimize_utility_model(
+        distance_log, eci, flows, informality, home_population, True, city
+    )
+    all_models[city] = {
+        "Utility": (params, predictions, 5),
+        "Gravity": (*optimize_gravity_pow_model(
+            distance, home_population, work_population, flows), 4),
+        "Radiation Ext": (*optimize_radiation_extended(
+            distance, home_population, work_population, flows), 1),
+        "BMS Plausible": (*optimize_bms_plausible_model(
+            distance, home_population, work_population, flows), 6),
+    }
+```
+
+## Flow Maps
+
+```{python}
+DISPLAY_NAMES = {"Utility": "WorkReach model", "Gravity": "Gravity model",
+                 "Radiation Ext": "Extended Radiation model",
+                 "BMS Plausible": "BMS Plausible model"}
+
+for city in CITY_ORDER:
+    data = all_city_data[city]
+    observed = data["aligned_data"]
+    projected = project_for_mapping(data["mzn"], city).set_index("geomid")
+
+    positive = observed.loc[observed.flows > 0, "flows"]
+    ref_min, ref_max = positive.min(), positive.max()
+    slug = city.replace(" ", "_")
+
+    fig = plot_flow_map(observed, projected, ref_min, ref_max, city)
+    fig.savefig(FIGS_DIR / f"{slug}_observed.png", dpi=300,
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+
+    for name, (_, prediction, _) in all_models[city].items():
+        predicted = pd.DataFrame(prediction, index=data["zones"], columns=data["zones"])
+        predicted = predicted.stack().reset_index()
+        predicted.columns = ["home_geomid", "work_geomid", "flows"]
+        predicted["flows"] = np.round(predicted["flows"]).astype(int)
+
+        fig = plot_flow_map(predicted, projected, ref_min, ref_max, city)
+        fig.savefig(FIGS_DIR / f"{slug}_{name}_model.png", dpi=300,
+                    facecolor="white", edgecolor="none")
+        plt.close(fig)
+
+    print(f"{city}: flow maps saved")
+```
+
+```{python}
+PANEL_ORDER = ["Observed", "BMS Plausible", "Gravity", "Radiation Ext", "Utility"]
+
+for city in CITY_ORDER:
+    slug = city.replace(" ", "_")
+    panels = {}
+    for name in PANEL_ORDER:
+        path = (FIGS_DIR / f"{slug}_observed.png" if name == "Observed"
+                else FIGS_DIR / f"{slug}_{name}_model.png")
+        panels[DISPLAY_NAMES.get(name, name)] = mpimg.imread(path)
+
+    fig = assemble_unified_figure(city, panels)
+    fig.savefig(FIGS_DIR / f"{slug}_unified_comparison.pdf", dpi=300,
+                bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"{city}: unified comparison saved")
+```
+
+## Accessibility against Informality
+
+```{python}
+combined_accessibility_df, _ = process_accessibility_data(all_city_data, all_models)
+
+z_scores = combined_accessibility_df.query("Model == 'Utility'").copy()
+for source, column in (("distance_weighted_accessibility", "z_dist"),
+                       ("surplus_accessibility", "z_surp")):
+    z_scores[column] = z_scores.groupby("City")[source].transform(
+        stats.zscore, nan_policy="omit")
+    z_scores[column] = z_scores.groupby("City")[column].transform(winsorise)
+    z_scores[column] = z_scores.groupby("City")[column].transform(
+        lambda x: (x - x.mean()) / x.std(ddof=0))
+
+z_scores = z_scores.dropna(subset=["z_dist", "z_surp"])
+z_scores["z_mean"] = winsorise((z_scores["z_dist"] + z_scores["z_surp"]) / 2.0)
+```
+
+```{python}
+fig = plot_accessibility_vs_informality(zone_data, z_scores, CITY_ORDER, ROW_INFO)
+fig.savefig(FIGS_DIR / "accessibility_scatters.pdf", dpi=300,
+            facecolor="white", edgecolor="none")
+```

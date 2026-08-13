@@ -1,0 +1,205 @@
+---
+title: "Model Validation"
+format: html
+jupyter: python3
+---
+
+Correlation between the errors of WorkReach and the benchmark models, and
+out-of-sample performance under a stratified five-fold split on origin zones.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+sys.path.append(".")
+
+import os
+import numpy as np
+import pandas as pd
+
+from data_processing import load_and_prepare_data, preprocess_data
+from evaluation import common_part_of_commuters
+from models import (
+    optimize_utility_model,
+    optimize_gravity_pow_model,
+    optimize_radiation_extended,
+    optimize_bms_plausible_model,
+)
+from cross_validation import FIT_FUNCTIONS, MODEL_NAMES, cpc, stratified_splits
+from si_plots import (
+    plot_error_correlation_heatmaps,
+    plot_error_correlation_scatter,
+    plot_oos_scatter,
+    plot_train_test_performance,
+)
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+BENCHMARKS = ["Gravity", "Radiation Ext", "BMS Plausible"]
+
+CITY_PATHS = {
+    "Bay Area": ("../../data/h3_bay_8.geojson", "../../data/bay_flows_h3_8.csv"),
+    "Los Angeles": ("../../data/h3_la_8.geojson", "../../data/la_flows_h3_8.csv"),
+    "Mexico City": ("../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv"),
+    "Rio de Janeiro": ("../../data/map_informality_eci.geojson", "../../data/rio_flows_h3_8h3.csv"),
+}
+```
+
+## Load Data
+
+```{python}
+city_prep = {}
+
+for city, (mzn_path, flows_path) in CITY_PATHS.items():
+    _, _, dist_m, eci_m, flows_m, home_m, inf_m, _ = load_and_prepare_data(
+        mzn_path, flows_path, city
+    )
+    eci_raw = eci_m.values.astype(float)
+    informality_raw = inf_m.values.astype(float)
+
+    (distance, distance_log, eci, flows, informality, home_population,
+     work_population, *_) = preprocess_data(home_m, dist_m, eci_m, flows_m, inf_m)
+
+    city_prep[city] = {
+        "distance": distance, "distance_log": distance_log, "eci": eci,
+        "informality": informality, "flows": flows,
+        "home_population": home_population, "work_population": work_population,
+        "eci_raw": eci_raw, "informality_raw": informality_raw,
+    }
+```
+
+## Fit Every Model
+
+```{python}
+all_models = {}
+
+for city in CITY_ORDER:
+    prep = city_prep[city]
+    models = {}
+
+    models["WorkReach"] = optimize_utility_model(
+        prep["distance_log"], prep["eci"], prep["flows"], prep["informality"],
+        prep["home_population"], True, city
+    )
+    models["Gravity"] = optimize_gravity_pow_model(
+        prep["distance"], prep["home_population"], prep["work_population"], prep["flows"]
+    )
+    models["Radiation Ext"] = optimize_radiation_extended(
+        prep["distance"], prep["home_population"], prep["work_population"], prep["flows"]
+    )
+    models["BMS Plausible"] = optimize_bms_plausible_model(
+        prep["distance"], prep["home_population"], prep["work_population"], prep["flows"]
+    )
+    all_models[city] = models
+
+    observed = prep["flows"].flatten()
+    for name, (_, prediction) in models.items():
+        value = cpc(observed, prediction.flatten())
+        r = np.corrcoef(observed, prediction.flatten())[0, 1]
+        print(f"{city:16s} {name:14s} CPC = {value:.3f}  r = {r:.3f}")
+```
+
+## Residual Correlation
+
+```{python}
+residuals = {}
+
+for city in CITY_ORDER:
+    flows = city_prep[city]["flows"]
+    off_diagonal = ~np.eye(flows.shape[0], dtype=bool)
+    residuals[city] = {
+        name: flows[off_diagonal] - prediction[off_diagonal]
+        for name, (_, prediction) in all_models[city].items()
+    }
+
+corr_tables = {
+    city: pd.DataFrame(
+        [[np.corrcoef(residuals[city][a], residuals[city][b])[0, 1] for b in MODEL_NAMES]
+         for a in MODEL_NAMES],
+        index=MODEL_NAMES, columns=MODEL_NAMES,
+    )
+    for city in CITY_ORDER
+}
+
+for city in CITY_ORDER:
+    print(f"\n{city}")
+    print(corr_tables[city].round(3))
+```
+
+```{python}
+fig = plot_error_correlation_heatmaps(corr_tables, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/error_correlation_heatmaps.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+```{python}
+fig = plot_error_correlation_scatter(residuals, CITY_ORDER, BENCHMARKS)
+fig.savefig(f"{FIGS_DIR}/error_correlation_scatter.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Out-of-Sample Evaluation
+
+```{python}
+fold_results = []
+oos_predictions = {}
+
+for city in CITY_ORDER:
+    prep = city_prep[city]
+    observed = prep["flows"]
+    off_diagonal = ~np.eye(observed.shape[0], dtype=bool)
+    oos_predictions[city] = {name: np.zeros_like(observed) for name in MODEL_NAMES}
+
+    for fold, (train_mask, test_mask) in enumerate(stratified_splits(prep)):
+        for name in MODEL_NAMES:
+            fit = FIT_FUNCTIONS[name]
+            kwargs = {"city": city} if name == "WorkReach" else {}
+            _, prediction = fit(prep, train_mask, **kwargs)
+
+            oos_predictions[city][name][test_mask, :] = prediction[test_mask, :]
+
+            row = {"City": city, "Fold": fold, "Model": name}
+            for split, mask in (("Train", train_mask), ("Test", test_mask)):
+                split_observed = observed[mask][off_diagonal[mask]]
+                split_predicted = prediction[mask][off_diagonal[mask]]
+                row[f"{split} CPC"] = cpc(split_observed, split_predicted)
+                row[f"{split} r"] = np.corrcoef(split_observed, split_predicted)[0, 1]
+            fold_results.append(row)
+
+    print(f"{city}: folds complete")
+
+results_df = pd.DataFrame(fold_results)
+```
+
+```{python}
+for city in CITY_ORDER:
+    observed = city_prep[city]["flows"].flatten()
+    for name in MODEL_NAMES:
+        predicted = oos_predictions[city][name].flatten()
+        value = cpc(observed, predicted)
+        r = np.corrcoef(observed, predicted)[0, 1]
+        print(f"{city:16s} {name:14s} out-of-sample CPC = {value:.3f}  r = {r:.3f}")
+```
+
+```{python}
+fig = plot_train_test_performance(results_df, CITY_ORDER, MODEL_NAMES)
+fig.savefig(f"{FIGS_DIR}/train_test_performance.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+```{python}
+city_flows = {city: city_prep[city]["flows"] for city in CITY_ORDER}
+model_order = ["Gravity", "Radiation Ext", "WorkReach", "BMS Plausible"]
+
+fig = plot_oos_scatter(oos_predictions, city_flows, CITY_ORDER, model_order)
+fig.savefig(f"{FIGS_DIR}/train_test_oos_scatter.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```

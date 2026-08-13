@@ -44,3 +44,6 @@ build/
 pip-wheel-metadata/
 *.egg
 
+
+# Supplementary figures are built locally, not shipped
+figs/SI/

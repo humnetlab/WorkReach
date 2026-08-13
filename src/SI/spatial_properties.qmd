@@ -1,0 +1,91 @@
+---
+title: "Spatial Properties of Model Inputs"
+format: html
+jupyter: python3
+---
+
+Spatial autocorrelation of the model inputs and the distribution of each variable
+after preprocessing.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+
+import os
+import numpy as np
+
+from data_processing import load_and_prepare_data, preprocess_data
+from si_plots import plot_spatial_analysis, plot_city_distributions
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+CITY_PATHS = {
+    "Bay Area": ("../../data/h3_bay_8.geojson", "../../data/bay_flows_h3_8.csv"),
+    "Los Angeles": ("../../data/h3_la_8.geojson", "../../data/la_flows_h3_8.csv"),
+    "Mexico City": ("../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv"),
+    "Rio de Janeiro": ("../../data/map_informality_eci.geojson", "../../data/rio_flows_h3_8h3.csv"),
+}
+
+VARIABLES = {"eci": r"$\mathrm{ECI}^{\mathrm{emp}}$", "informality_rate": "Informality rate"}
+```
+
+## Load Data
+
+```{python}
+city_data = {}
+
+for city, (mzn_path, flows_path) in CITY_PATHS.items():
+    aligned, mzn, dist_m, eci_m, flows_m, home_m, inf_m, _ = load_and_prepare_data(
+        mzn_path, flows_path, city
+    )
+    prep = preprocess_data(home_m, dist_m, eci_m, flows_m, inf_m)
+    city_data[city] = {"aligned": aligned, "mzn": mzn, "prep": prep}
+```
+
+## Spatial Autocorrelation
+
+```{python}
+for variable, display_name in VARIABLES.items():
+    for city in CITY_ORDER:
+        fig, _ = plot_spatial_analysis(
+            city_data[city]["mzn"].copy(), variable, city, display_name
+        )
+        slug = city.lower().replace(" ", "_")
+        fig.savefig(f"{FIGS_DIR}/spatial_analysis_{slug}_{variable}.pdf",
+                    dpi=300, facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Variable Distributions
+
+```{python}
+for city in CITY_ORDER:
+    fig = plot_city_distributions(
+        city, city_data[city]["prep"], city_data[city]["aligned"], city_data[city]["mzn"]
+    )
+    slug = {"Bay Area": "bay_area", "Los Angeles": "los_angeles",
+            "Mexico City": "cdmx", "Rio de Janeiro": "rio"}[city]
+    fig.savefig(f"{FIGS_DIR}/{slug}_distributions.pdf",
+                dpi=300, facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Collinearity between the Two Covariates
+
+```{python}
+from si_plots import plot_eci_informality_scatter
+
+zone_frames = {city: city_data[city]["mzn"] for city in CITY_ORDER}
+
+fig = plot_eci_informality_scatter(zone_frames, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/s8_eci_informality_scatter.pdf",
+            dpi=300, facecolor="white", edgecolor="none", bbox_inches="tight")
+```

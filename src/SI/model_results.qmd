@@ -1,0 +1,98 @@
+---
+title: "Model Results"
+format: html
+jupyter: python3
+---
+
+Shape of the transition weight and the relationship between the two accessibility
+measures.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+
+import os
+import numpy as np
+
+from data_processing import load_and_prepare_data, preprocess_data
+from models import optimize_utility_model
+from accessibility import process_accessibility_data
+from si_plots import plot_transition_weights, plot_accessibility_scatters
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+CITY_PATHS = {
+    "Bay Area": ("../../data/h3_bay_8.geojson", "../../data/bay_flows_h3_8.csv"),
+    "Los Angeles": ("../../data/h3_la_8.geojson", "../../data/la_flows_h3_8.csv"),
+    "Mexico City": ("../../data/h3_cdmx_8.geojson", "../../data/cdmx_flows_h3_8.csv"),
+    "Rio de Janeiro": ("../../data/map_informality_eci.geojson", "../../data/rio_flows_h3_8h3.csv"),
+}
+```
+
+## Load Data and Fit WorkReach
+
+```{python}
+all_city_data = {}
+all_models = {}
+
+for city, (mzn_path, flows_path) in CITY_PATHS.items():
+    aligned, mzn, dist_m, eci_m, flows_m, home_m, inf_m, _ = load_and_prepare_data(
+        mzn_path, flows_path, city
+    )
+    median_informality = mzn["informality_rate"].median()
+    aligned["informality_level"] = np.where(
+        aligned["informality_rate"] < median_informality, "Low", "High"
+    )
+
+    (distance, distance_log, eci, flows, informality, home_population, work_population,
+     distance_min, distance_diff, eci_min, eci_diff) = preprocess_data(
+        home_m, dist_m, eci_m, flows_m, inf_m
+    )
+
+    all_city_data[city] = {
+        "aligned_data": aligned, "mzn": mzn, "distance_matrix": dist_m,
+        "distance": distance, "distance_log": distance_log, "eci": eci,
+        "flows": flows, "informality": informality,
+        "home_population": home_population, "work_population": work_population,
+        "distance_min": distance_min, "distance_diff": distance_diff,
+    }
+
+    params, predictions = optimize_utility_model(
+        distance_log, eci, flows, informality, home_population, True, city
+    )
+    all_models[city] = {"Utility": (params, predictions, 5)}
+```
+
+## Transition Weight
+
+```{python}
+params_by_city = {city: all_models[city]["Utility"][0] for city in CITY_ORDER}
+scaling_by_city = {
+    city: (all_city_data[city]["distance_diff"], all_city_data[city]["distance_min"])
+    for city in CITY_ORDER
+}
+
+fig = plot_transition_weights(CITY_ORDER, params_by_city, scaling_by_city)
+fig.savefig(f"{FIGS_DIR}/transition_all.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Accessibility Measures
+
+```{python}
+combined_accessibility_df, _ = process_accessibility_data(all_city_data, all_models)
+
+fig = plot_accessibility_scatters(combined_accessibility_df, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/accessibility_scatter_only.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```

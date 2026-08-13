@@ -1,0 +1,68 @@
+---
+title: "Income and Wealth Proxies"
+format: html
+jupyter: python3
+---
+
+Whether economic complexity carries information beyond the income or wealth of a
+destination zone.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+sys.path.append(".")
+
+import os
+import pandas as pd
+import geopandas as gpd
+
+from si_plots import plot_eci_income_scatter
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+ZONE_PATHS = {
+    "Bay Area": "../../data/h3_bay_8.geojson",
+    "Los Angeles": "../../data/h3_la_8.geojson",
+    "Mexico City": "../../data/h3_cdmx_8.geojson",
+    "Rio de Janeiro": "../../data/map_informality_eci.geojson",
+}
+
+INCOME_PATHS = {
+    "Bay Area": "../../data/income_proxy_bay.csv",
+    "Los Angeles": "../../data/income_proxy_la.csv",
+    "Mexico City": "../../data/income_proxy_cdmx.csv",
+    "Rio de Janeiro": "../../data/income_proxy_rio.csv",
+}
+```
+
+## Load Data
+
+```{python}
+zone_frames = {city: gpd.read_file(path) for city, path in ZONE_PATHS.items()}
+income_data = {city: pd.read_csv(path, dtype={"geomid": str})
+               for city, path in INCOME_PATHS.items()}
+
+for city in CITY_ORDER:
+    zones = zone_frames[city][["geomid", "eci"]].copy()
+    zones["geomid"] = zones["geomid"].astype(str)
+    matched = zones.merge(income_data[city], on="geomid", how="inner").dropna()
+    print(f"{city:16s} {len(income_data[city]):5d} proxy zones, {len(matched):5d} matched")
+```
+
+## Complexity against the Proxy
+
+```{python}
+fig = plot_eci_income_scatter(zone_frames, income_data, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/s5_eci_income_scatter.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```

@@ -1,0 +1,106 @@
+---
+title: "Structure of the Zone-Sector Data"
+format: html
+jupyter: python3
+---
+
+Binary specialisation matrices behind the complexity measures, and the product
+space each city implies.
+
+## Setup
+
+```{python}
+import sys
+
+sys.path.append("..")
+sys.path.append(".")
+
+import os
+
+from complexity import (
+    load_employment,
+    compute_binary_rca,
+    compute_pci,
+    compute_proximity,
+    mst_with_threshold,
+    nodf,
+    PRODUCT_SPACE_THRESHOLDS,
+)
+from si_plots import plot_rca_matrices, plot_product_space_grid
+```
+
+## Configuration
+
+```{python}
+FIGS_DIR = "../../figs/SI"
+os.makedirs(FIGS_DIR, exist_ok=True)
+
+CITY_ORDER = ["Bay Area", "Los Angeles", "Mexico City", "Rio de Janeiro"]
+
+EMPLOYMENT_PATHS = {
+    "Bay Area": "../../data/employment_bay.csv",
+    "Los Angeles": "../../data/employment_la.csv",
+    "Mexico City": "../../data/employment_cdmx.csv",
+    "Rio de Janeiro": "../../data/employment_rio.csv",
+}
+```
+
+## Complexity Quantities
+
+```{python}
+employment_data, rca_matrices, pci_data, proximity_data, graphs = {}, {}, {}, {}, {}
+
+for city, path in EMPLOYMENT_PATHS.items():
+    employment = load_employment(path)
+    matrix = compute_binary_rca(employment)
+
+    employment_data[city] = employment
+    rca_matrices[city] = matrix
+    pci_data[city] = compute_pci(matrix)
+    proximity_data[city] = compute_proximity(matrix)
+    graphs[city] = mst_with_threshold(proximity_data[city],
+                                      PRODUCT_SPACE_THRESHOLDS[city])
+
+    print(f"{city:16s} {matrix.shape[0]:4d} zones x {matrix.shape[1]:2d} sectors  "
+          f"NODF = {nodf(matrix):.1f}  {graphs[city].number_of_edges():3d} edges")
+```
+
+## Specialisation Matrices
+
+```{python}
+fig = plot_rca_matrices(rca_matrices, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/r3c7_rca_matrices.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Product Space
+
+```{python}
+fig = plot_product_space_grid(CITY_ORDER, proximity_data, pci_data,
+                              employment_data, graphs)
+fig.savefig(f"{FIGS_DIR}/product_space_grid.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Complexity against Its Components
+
+```{python}
+import geopandas as gpd
+
+from complexity import zone_components
+from si_plots import plot_eci_components
+
+ZONE_PATHS = {
+    "Bay Area": "../../data/h3_bay_8.geojson",
+    "Los Angeles": "../../data/h3_la_8.geojson",
+    "Mexico City": "../../data/h3_cdmx_8.geojson",
+    "Rio de Janeiro": "../../data/map_informality_eci.geojson",
+}
+
+zone_frames = {city: gpd.read_file(path) for city, path in ZONE_PATHS.items()}
+components = {city: zone_components(rca_matrices[city]) for city in CITY_ORDER}
+
+fig = plot_eci_components(zone_frames, components, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/r3c12_eci_div_ubi_scatter.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
