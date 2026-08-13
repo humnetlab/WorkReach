@@ -16,18 +16,37 @@ def project_for_mapping(gdf, city_name: str):
     """Reproject to the city's metric CRS so distances on the map are in metres."""
     return gdf.to_crs(epsg=CITY_PROJECTIONS.get(city_name, 3857))
 
-# Rio's outline reaches the lower left, so its bar goes to the opposite corner.
-SCALE_BAR_LOCATIONS = {"Rio de Janeiro": "upper left"}
+# Rio's outline reaches the lower left, so its bar is dropped below the axes
+# to sit at the same height as the bars of the other cities.
+SCALE_BAR_OFFSETS = {"Rio de Janeiro": -0.14}
+
+def _round_length(metres: float) -> float:
+    """Round a distance down to a 1, 2 or 5 times a power of ten."""
+    exponent = 10 ** np.floor(np.log10(metres))
+    for step in (5, 2, 1):
+        if metres >= step * exponent:
+            return step * exponent
+    return exponent
 
 def add_scale_bar(ax, city_name: str, font_size: int = 20) -> None:
     """Add a scale bar to a map drawn in a metric CRS, clear of the city's outline."""
-    ax.add_artist(ScaleBar(
-        1, "m",
-        location=SCALE_BAR_LOCATIONS.get(city_name, "lower left"),
-        box_alpha=0.7,
-        pad=0.5,
-        font_properties={"size": font_size}
-    ))
+    offset = SCALE_BAR_OFFSETS.get(city_name)
+
+    if offset is None:
+        ax.add_artist(ScaleBar(1, "m", location='lower left', frameon=False,
+                               pad=0.5, font_properties={"size": font_size}))
+        return
+
+    # Drawn by hand below the axes, since the outline reaches the lower left
+    x_min, x_max = ax.get_xlim()
+    length = _round_length((x_max - x_min) / 5)
+    fraction = length / (x_max - x_min)
+
+    ax.plot([0.03, 0.03 + fraction], [offset, offset], transform=ax.transAxes,
+            color='black', linewidth=3, solid_capstyle='butt', clip_on=False)
+    ax.text(0.03 + fraction / 2, offset + 0.015, f"{length / 1000:g} km",
+            transform=ax.transAxes, ha='center', va='bottom',
+            fontsize=font_size, clip_on=False)
 
 
 def common_part_of_commuters(values1: np.ndarray, values2: np.ndarray) -> float:
@@ -384,7 +403,7 @@ def create_maps_with_histograms(all_city_data, city_order, figsize=(42, 26)):
     for c, city in enumerate(city_order):
         fig.text(0.17 + c * 0.219, 0.97, city, fontsize=50, fontweight="bold", ha="center", va="top")
 
-    for r, (row_label, metric_name) in enumerate([("a)", "ECI"), ("b)", "Informality Rate")]):
+    for r, (row_label, metric_name) in enumerate([("a)", "ECI"), ("b)", "Informality rate")]):
         ax_pos = axes[r, 0].get_position()
         row_top_y = ax_pos.y0 + ax_pos.height + 0.02
         fig.text(0.04, row_top_y, f"{row_label}  {metric_name}",
@@ -436,23 +455,24 @@ def create_accessibility_maps(all_city_data, z_df, city_order, figsize=(24, 18))
             cb = plt.colorbar(sm, cax=cax)
             cb.ax.tick_params(labelsize=20)
             cb.outline.set_linewidth(0)
-            cax.set_title("z-score", fontsize=20, pad=8)
+            cb.set_label("Accessibility (z-score)", fontsize=22)
 
             cb.solids.set_edgecolor("none")
             cb.solids.set_linewidth(0)
             cb.solids.set_rasterized(True)
 
     ROW_INFO = [
-        ("z_dist", "crest_r", False, "a)  Distance‑weighted Accessibility"),
-        ("z_surp", "viridis", False, "b)  Consumer Surplus Accessibility"),
-        ("z_mean", "flare_r", False,  "c)  Mean z-score Accessibility")
+        ("z_dist", "crest_r", False, "a)  Distance-weighted accessibility"),
+        ("z_surp", "viridis", False, "b)  Consumer surplus accessibility"),
+        ("z_mean", "flare_r", False,  "c)  Mean z-score accessibility")
     ]
 
     fig, axes = plt.subplots(3, 4, figsize=figsize,
-                             gridspec_kw={"hspace": 0.25, "wspace": 0.12})
+                             gridspec_kw={"hspace": 0.25, "wspace": 0.38})
 
     for c, city in enumerate(city_order):
-        fig.text(0.20 + c * 0.21, 0.955, city,
+        pos = axes[0, c].get_position()
+        fig.text(pos.x0 + pos.width / 2, 0.955, city,
                  fontsize=30, fontweight="bold", ha="center", va="top")
 
     for r, (metric, cmap, div, row_label) in enumerate(ROW_INFO):

@@ -323,8 +323,8 @@ for i, city in enumerate(cities_list):
         max_val = max(np.max(flows_plot), np.max(pred_plot))
         ax.plot([0, max_val], [0, max_val], 'r--', alpha=0.88)
 
-        ax.text(0.05, 0.95, f"$\\rho$ = {corr:.2f}\nCPC = {cpc:.2f}",
-            transform=ax.transAxes, fontsize=26,
+        ax.text(0.05, 0.95, f"$r$ = {corr:.2f}\nCPC = {cpc:.2f}",
+            transform=ax.transAxes, fontsize=20,
             verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
 
@@ -337,12 +337,12 @@ for i, city in enumerate(cities_list):
             ax.set_title(model_display, fontsize=26)
 
         if j == 0:
-            ax.set_ylabel(f"{city}\nPredicted Flows", fontsize=24)
+            ax.set_ylabel(f"{city}\nPredicted flows", fontsize=24)
             ax.text(-0.28, 1.04, f"{chr(97 + i)})", transform=ax.transAxes,
                     fontsize=30, fontweight="bold", va="bottom", ha="left")
 
         if i == len(cities_list) - 1:
-            ax.set_xlabel("Observed Flows", fontsize=24)
+            ax.set_xlabel("Observed flows", fontsize=24)
 
         ax.set_xscale('log')
         ax.set_yscale('log')
