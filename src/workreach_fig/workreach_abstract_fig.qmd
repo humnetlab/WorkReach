@@ -64,7 +64,7 @@ fig1, ax1 = plot_utility_map(
 )
 ```
 
-### Map 2: Utility Distribution (Viridis)
+### Map 2: Utility Distribution
 
 ```{python}
 fig2, ax2 = plot_utility_map(
@@ -79,7 +79,7 @@ fig2, ax2 = plot_utility_map(
 )
 ```
 
-### Map 3: Utility Distribution (Plasma - Final)
+### Map 3: Utility Distribution
 
 ```{python}
 fig3, ax3 = plot_utility_map(
@@ -97,9 +97,6 @@ fig3, ax3 = plot_utility_map(
 ```
 
 ## Commuting Flows Map
-
-Panel c of the graphical abstract. Only the individual panel is saved; the
-multi-panel layout is assembled outside this repository.
 
 ```{python}
 import sys
