@@ -21,7 +21,7 @@ import pandas as pd
 from data_processing import load_and_prepare_data
 from complexity import load_employment, compute_binary_rca, compute_proximity
 
-SKIP_SECTORS = {"Other", "NA", "Agriculture"}
+SKIP_SECTORS = {"Other", "NA"}
 from relatedness import (
     employment_shares,
     dominant_sector,
@@ -55,7 +55,7 @@ CITY_PATHS = {
 ## Relatedness of Every Observed Commute
 
 ```{python}
-profiles = {}
+profiles, city_flows = {}, {}
 
 for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
     flows, *_ = load_and_prepare_data(zone_path, flow_path, city)
@@ -69,6 +69,8 @@ for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
 
     flows["sr"], flows["cosine"] = relatedness_for_flows(flows, shares, proximity)
     profiles[city] = sector_profiles(flows, dominant_sector(shares))
+    flows["home_informality"] = flows["informality_rate"]
+    city_flows[city] = flows
 
     covered = flows["sr"].notna().mean() * 100
     print(f"{city:16s} {len(flows):7,} pairs, {covered:5.1f}% with relatedness, "
@@ -80,5 +82,23 @@ for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
 ```{python}
 fig = plot_sector_crosscity(profiles, CITY_ORDER)
 fig.savefig(f"{FIGS_DIR}/comment3_sector_crosscity.pdf", dpi=300,
+            facecolor="white", edgecolor="none", bbox_inches="tight")
+```
+
+## Relatedness against Commuting Distance
+
+```{python}
+from relatedness import origin_decile_table
+from si_plots import plot_sr_informality
+
+decile_tables, decile_distances = {}, {}
+
+for city, (zone_path, flow_path, employment_path) in CITY_PATHS.items():
+    flows = city_flows[city]
+    decile_tables[city], decile_distances[city] = origin_decile_table(flows)
+    print(f"{city:16s} {len(decile_tables[city]):6,} origin-decile cells")
+
+fig = plot_sr_informality(decile_tables, decile_distances, CITY_ORDER)
+fig.savefig(f"{FIGS_DIR}/comment3_sr_inf_scatter.pdf", dpi=300,
             facecolor="white", edgecolor="none", bbox_inches="tight")
 ```

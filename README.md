@@ -60,6 +60,30 @@ The spatial distribution of accessibility measures reveals peripheral locations,
 ## Usage
 Currently, the final to produce all results is in the `commuter_flows.qmd` file which is a Quarto notebook (using Python). You can run this file to reproduce the analysis and figures in the paper.
 
+The notebooks under `src/SI` reproduce the Supplementary figures. They read the same
+aggregated tables in `data/` and write to `figs/SI`.
+
+## Data
+
+`data/` holds the aggregated, analysis-ready tables. No individual-level record is
+included in this repository.
+
+| File | Contents |
+| --- | --- |
+| `h3_*.geojson`, `map_informality_eci.geojson` | Zone geometries with ECI, informality rate and population |
+| `*_flows_*.csv` | Aggregated origin-destination commuting flows |
+| `employment_*.csv` | Workers by zone and NAICS sector, used for the complexity measures |
+| `workers_*.csv` | Workers by zone and harmonised sector, used for sectoral relatedness |
+| `income_proxy_*.csv` | Mean and median wage per destination zone, with worker counts |
+
+Sources by city. Employment and commuting data for the Bay Area and Los Angeles are
+derived from **Replica**; the tables here are aggregates and carry no raw Replica data
+or data extracts. Mexico City uses DENUE and the 2020 population census from INEGI,
+with mobility from location-based services licensed from Quadrant. Rio de Janeiro uses
+RAIS and the 2010 demographic census from IBGE, with the same mobility source. The
+underlying licensed data cannot be redistributed and must be obtained from the
+respective providers.
+
 
 ## Authors
 

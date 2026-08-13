@@ -20,6 +20,8 @@ from matplotlib.colors import to_rgba
 from matplotlib.collections import LineCollection
 
 from evaluation import common_part_of_commuters
+from relatedness import (DECILE_LABELS, INFORMALITY_LABELS,
+                         weighted_median_ci, weighted_linear_fit)
 import mapclassify
 from pysal.lib import weights
 from matplotlib.lines import Line2D
@@ -880,4 +882,95 @@ def plot_sector_crosscity(profiles, city_order):
                bbox_to_anchor=(0.5, -0.08), ncol=5, fontsize=15,
                frameon=True, framealpha=0.9, title_fontsize=15)
     plt.tight_layout()
+    return fig
+
+
+def plot_sr_informality(decile_tables, decile_distances, city_order):
+    """Relatedness against commuting distance decile, split by origin informality."""
+    row_columns = ["fwm_sr", "mean_sr"]
+    row_titles = ["OD-pair SR", "Per-origin mean SR"]
+    group_colors = ["#1565C0", "#C62828"]
+    offsets = [-0.15, 0.15]
+
+    fig, axes = plt.subplots(2, 4, figsize=(32, 15))
+    fig.subplots_adjust(hspace=0.55, wspace=0.35, left=0.10, right=0.985,
+                        top=0.86, bottom=0.18)
+
+    for column, city in enumerate(city_order):
+        table = decile_tables[city]
+        distances = decile_distances[city]
+
+        for row, value_column in enumerate(row_columns):
+            ax = axes[row, column]
+            annotations = []
+
+            for group, colour, offset in zip(INFORMALITY_LABELS, group_colors, offsets):
+                subset = table[table["inf_bin"] == group].dropna(
+                    subset=[value_column, "decile"])
+
+                positions, centres, medians, low, high, weights = [], [], [], [], [], []
+                for index, label in enumerate(DECILE_LABELS):
+                    cell = subset[subset["decile"] == label]
+                    if len(cell) < 2:
+                        continue
+                    median, lo, hi = weighted_median_ci(cell[value_column].values,
+                                                        cell["total_flows"].values)
+                    if not np.isfinite(median):
+                        continue
+                    positions.append(index + 1 + offset)
+                    centres.append(index + 1)
+                    medians.append(median)
+                    low.append(lo)
+                    high.append(hi)
+                    weights.append(cell["total_flows"].sum())
+
+                if len(positions) < 3:
+                    continue
+
+                positions, centres, medians, low, high, weights = (
+                    np.array(a) for a in (positions, centres, medians, low, high, weights))
+
+                ax.errorbar(positions, medians,
+                            yerr=[medians - low, high - medians],
+                            fmt="o", color=colour, markersize=9, capsize=4,
+                            elinewidth=1.6, alpha=0.9, label=group)
+
+                fit = weighted_linear_fit(centres, medians, weights)
+                if fit is not None:
+                    ax.plot(fit["x_fit"], fit["y_fit"], ls="--", color=colour, lw=2.4)
+                    annotations.append(
+                        f"{group[0]}: $r$={fit['r']:.2f} $p$={fit['p']:.3f}")
+
+            if annotations:
+                ax.text(0.97, 0.97, "\n".join(annotations), transform=ax.transAxes,
+                        ha="right", va="top", fontsize=18,
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.7",
+                                  alpha=0.9))
+
+            shown = list(range(1, len(DECILE_LABELS) + 1, 2))
+            ax.set_xticks(shown)
+            ax.set_xticklabels([f"{distances.get(DECILE_LABELS[i - 1], np.nan):.0f}"
+                                for i in shown], fontsize=22)
+            ax.set_xlim(0.5, len(DECILE_LABELS) + 0.5)
+            ax.set_xlabel("Median distance by decile [km]", fontsize=24)
+            ax.tick_params(axis="y", labelsize=22)
+            if column == 0:
+                ax.set_ylabel("Sectoral relatedness", fontsize=24)
+            if row == 0:
+                ax.set_title(city, fontsize=28, fontweight="bold", pad=14)
+            ax.spines[["top", "right"]].set_visible(False)
+
+    fig.canvas.draw()
+    for row, title in enumerate(row_titles):
+        left = axes[row, 0].get_position().x0
+        right = axes[row, -1].get_position().x1
+        top = max(ax.get_position().y1 for ax in axes[row, :])
+        fig.text((left + right) / 2, top + 0.035, f"{chr(97 + row)})  {title}",
+                 ha="center", va="bottom", fontsize=30, fontweight="bold")
+
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    seen = dict(zip(labels, handles))
+    fig.legend(seen.values(), seen.keys(), loc="lower center",
+               bbox_to_anchor=(0.5, 0.04), ncol=2, fontsize=24,
+               frameon=True, framealpha=0.9)
     return fig
