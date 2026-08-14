@@ -548,6 +548,16 @@ def plot_train_test_performance(results_df, city_order, model_names):
                    yerr=means["test_std"], capsize=3,
                    label="Test", color="coral", alpha=0.8)
 
+            for offset, split in ((-width / 2, "Train"), (width / 2, "Test")):
+                folds = (city_df.pivot_table(index="Fold", columns="Model",
+                                             values=f"{split} {metric}")
+                         .reindex(columns=model_names))
+                for position, model in enumerate(model_names):
+                    values = folds[model].dropna().values
+                    jitter = np.linspace(-width / 5, width / 5, len(values))
+                    ax.scatter(position + offset + jitter, values, s=14, color="0.15",
+                               zorder=3, linewidths=0)
+
             ax.set_xticks(x)
             ax.set_xticklabels([m.replace(" ", "\n") for m in model_names],
                                fontsize=18, rotation=45)
